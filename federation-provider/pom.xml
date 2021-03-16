@@ -4,49 +4,37 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>it.infn.cnaf.sd</groupId>
-  <artifactId>keycloak-saml-federation-provider-parent</artifactId>
-  <version>0.1-SNAPSHOT</version>
-  <packaging>pom</packaging>
+  <parent>
+    <groupId>it.infn.cnaf.sd</groupId>
+    <artifactId>keycloak-saml-federation-provider-parent</artifactId>
+    <version>0.1-SNAPSHOT</version>
+  </parent>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
-    <maven.compiler.release>11</maven.compiler.release>
-    <keycloak.version>12.0.0.eosc-kc-metadata-SNAPSHOT</keycloak.version>
-    <junit-jupiter.version>5.6.3</junit-jupiter.version>
-    <auto-service.version>1.0-rc7</auto-service.version>
-    <lombok.version>1.18.16</lombok.version>
-    <logback-classic.version>1.2.3</logback-classic.version>
-    <jboss-logging.version>3.3.2.Final</jboss-logging.version>
-    <testcontainers.version>1.15.1</testcontainers.version>
-    <infinispan.version>9.4.18.Final</infinispan.version>
-    <testcontainers-keycloak.version>1.5.0</testcontainers-keycloak.version>
-    <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-  </properties>
+  <artifactId>keycloak-saml-federation-provider</artifactId>
 
-  <dependencyManagement>
-    <dependencies>
-
+  <dependencies>
+    
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>keycloak-saml-metadata-store</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-core</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-model-infinispan</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-services</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -59,40 +47,34 @@
     <dependency>
       <groupId>org.infinispan</groupId>
       <artifactId>infinispan-core</artifactId>
-      <version>${infinispan.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.infinispan</groupId>
       <artifactId>infinispan-cachestore-remote</artifactId>
-      <version>${infinispan.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-server-spi</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-saml-core</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-saml-adapter-api-public</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-server-spi-private</artifactId>
-      <version>${keycloak.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -103,44 +85,12 @@
           <groupId>log4j</groupId>
           <artifactId>log4j</artifactId>
         </exclusion>
-
       </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.jboss.logging</groupId>
-      <artifactId>jboss-logging</artifactId>
-      <version>${jboss-logging.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-      <version>${logback-classic.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <version>${lombok.version}</version>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-      <version>${auto-service.version}</version>
-      <scope>provided</scope>
-      <optional>true</optional>
     </dependency>
 
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-admin-client</artifactId>
-      <version>${keycloak.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -151,9 +101,34 @@
     </dependency>
 
     <dependency>
+      <groupId>org.jboss.logging</groupId>
+      <artifactId>jboss-logging</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
       <groupId>com.github.dasniko</groupId>
       <artifactId>testcontainers-keycloak</artifactId>
-      <version>${testcontainers-keycloak.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -166,37 +141,28 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>${testcontainers.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit-jupiter.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-params</artifactId>
-      <version>${junit-jupiter.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit-jupiter.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
-  </dependencyManagement>
   
-  <modules>
-    <module>metadata-store</module>
-    <module>metadata-store-ear</module>
-    <module>federation-provider</module>
-  </modules>
-  
-  
+  <build>
+    <finalName>keycloak-saml-federation-provider</finalName>
+  </build>
 
 </project>
