@@ -110,7 +110,7 @@
   </dependencies>
   
   <build>
-    <finalName>keycloak-saml-medatada-store</finalName>
+    <finalName>keycloak-saml-metadata-store</finalName>
   </build>
 
 </project>

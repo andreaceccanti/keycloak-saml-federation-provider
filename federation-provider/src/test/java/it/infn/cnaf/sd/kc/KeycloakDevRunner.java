@@ -14,6 +14,7 @@ public class KeycloakDevRunner {
     kc.withFixedExposedPort(8080, 8080);
     kc.withFixedExposedPort(1044, 1044);
     kc.withClassFolderChangeTrackingEnabled(true);
+
     // kc.withRealmImportFile("test-realm.json");
     kc.start();
 

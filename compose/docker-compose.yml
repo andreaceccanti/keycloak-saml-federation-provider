@@ -1,0 +1,17 @@
+version: "3.5"
+
+services:
+  kc:
+    image: cnafsd/kc-dev:latest
+    environment:
+      TZ: UTC
+
+    command: -c standalone.xml -b 0.0.0.0 --debug *:1044
+
+    volumes:
+      - ../metadata-store/target/keycloak-saml-metadata-store.jar:/opt/jboss/keycloak/modules/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar
+
+
+    ports:
+      - 8080
+      - "1044:1044"

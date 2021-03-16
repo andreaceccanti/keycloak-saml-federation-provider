@@ -412,7 +412,7 @@
                     classpath:${jboss.home.dir}/providers/*
                 </provider>
                 <provider>
-                    module:it.infn.cnaf.sd.keycloak-saml-federation-provider
+                    module:it.infn.sd.keycloak-saml-metadata-store
                 </provider>
             </providers>
             <master-realm-name>master</master-realm-name>
