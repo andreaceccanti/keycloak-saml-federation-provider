@@ -10,10 +10,11 @@
   <packaging>pom</packaging>
 
   <properties>
+    <java.version>11</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
-    <maven.compiler.release>11</maven.compiler.release>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <maven.compiler.release>${java.version}</maven.compiler.release>
     <keycloak.version>12.0.0.eosc-kc-metadata-SNAPSHOT</keycloak.version>
     <junit-jupiter.version>5.6.3</junit-jupiter.version>
     <auto-service.version>1.0-rc7</auto-service.version>
@@ -193,10 +194,7 @@
   
   <modules>
     <module>metadata-store</module>
-    <module>metadata-store-ear</module>
     <module>federation-provider</module>
   </modules>
-  
-  
 
 </project>
