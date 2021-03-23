@@ -13,18 +13,16 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.spi.HttpRequest;
-import org.keycloak.common.ClientConnection;
 import org.keycloak.models.IdentityProviderModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.managers.RealmManager;
+import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.services.util.CacheControlUtil;
 import org.keycloak.theme.FreeMarkerException;
 import org.keycloak.theme.FreeMarkerUtil;
@@ -38,18 +36,15 @@ import it.infn.cnaf.sd.kc.metadata.SAMLIdpDescriptor;
 
 
 @Path("/realms")
-public class SAMLAggregateWayfResource {
+public class SAMLAggregateWayfResource implements RealmResourceProvider {
 
   protected static final Logger LOG = Logger.getLogger(SAMLAggregateWayfResource.class);
 
-  @Context
-  protected KeycloakSession session;
+  private KeycloakSession session;
 
-  @Context
-  protected ClientConnection clientConnection;
-
-  @Context
-  private HttpRequest request;
+  public SAMLAggregateWayfResource(KeycloakSession session) {
+    this.session = session;
+  }
 
   private RealmModel init(String realmName) {
     RealmManager realmManager = new RealmManager(session);
@@ -65,23 +60,23 @@ public class SAMLAggregateWayfResource {
   @Path("{realm}/saml-wayf-page")
   @Produces(MediaType.TEXT_HTML)
   public Response getWayfPage(final @PathParam("realm") String name,
-                              @QueryParam("provider") String providerAlias,
-                              @QueryParam("sessionCode") String sessionCode,
-                              @QueryParam("tabId") String tabId,
-                              @QueryParam("clientId") String clientId) throws IOException, FreeMarkerException {
+      @QueryParam("provider") String providerAlias, @QueryParam("sessionCode") String sessionCode,
+      @QueryParam("tabId") String tabId, @QueryParam("clientId") String clientId)
+      throws IOException, FreeMarkerException {
     if (Strings.isNullOrEmpty(providerAlias)) {
       throw new ErrorResponseException("Bad request", "Please specify a provider",
-              Response.Status.BAD_REQUEST);
+          Response.Status.BAD_REQUEST);
     }
 
     RealmModel realm = init(name);
 
     IdentityProviderModel idpConfig = realm.getIdentityProviderByAlias(providerAlias);
 
-    if (Objects.isNull(idpConfig) || !SAMLAggregateIdentityProviderFactory.PROVIDER_ID.equals(idpConfig.getProviderId())) {
+    if (Objects.isNull(idpConfig)
+        || !SAMLAggregateIdentityProviderFactory.PROVIDER_ID.equals(idpConfig.getProviderId())) {
       throw new ErrorResponseException("Invalid WAYF provider",
-              "Provider " + providerAlias + " does not exist or is not a SAMLAggregateProvider",
-              Response.Status.BAD_REQUEST);
+          "Provider " + providerAlias + " does not exist or is not a SAMLAggregateProvider",
+          Response.Status.BAD_REQUEST);
     }
 
     Map<String, String> attributes = new HashMap<>();
@@ -93,9 +88,9 @@ public class SAMLAggregateWayfResource {
     FreeMarkerUtil freemarker = new FreeMarkerUtil();
     String wayfHtml = freemarker.processTemplate(attributes, "saml-wayf.ftl", theme);
 
-    Response.ResponseBuilder rb = Response.status( Response.Status.OK)
-            .entity(wayfHtml)
-            .cacheControl(CacheControlUtil.noCache());
+    Response.ResponseBuilder rb = Response.status(Response.Status.OK)
+      .entity(wayfHtml)
+      .cacheControl(CacheControlUtil.noCache());
 
     return rb.build();
   }
@@ -152,6 +147,14 @@ public class SAMLAggregateWayfResource {
     repr.setDiplayName(descriptor.getDisplayName());
     repr.setEntityId(descriptor.getEntityId());
     return repr;
+  }
+
+  @Override
+  public void close() {}
+
+  @Override
+  public Object getResource() {
+    return this;
   }
 
 }

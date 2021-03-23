@@ -6,7 +6,7 @@ Keycloak.
 ## Build instructions
 
 This build relies on changes not yet merged upstream. 
-To have the required dependency, checkout this branch:
+To have the required dependencies, checkout this branch:
 
 https://github.com/eosc-kc/keycloak/tree/metadata-enchancments
 
