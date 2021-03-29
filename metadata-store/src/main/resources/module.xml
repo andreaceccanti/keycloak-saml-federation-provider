@@ -19,5 +19,22 @@
         <module name="com.google.guava"/>
         <module name="org.apache.commons.io"/>
         <module name="org.infinispan"/>
+        <module name="org.freemarker"/>
+        <module name="javax.ws.rs.api"/>
+        <module name="javax.mail.api"/>
+        <module name="javax.xml.soap.api"/>
+        <module name="org.jboss.resteasy.resteasy-jaxrs"/>
+        <module name="org.jboss.resteasy.resteasy-multipart-provider"/>
+        <module name="org.jboss.dmr"/>
+        <module name="javax.servlet.api"/>
+        <module name="com.fasterxml.jackson.core.jackson-core"/>
+        <module name="com.fasterxml.jackson.core.jackson-annotations"/>
+        <module name="com.fasterxml.jackson.core.jackson-databind"/>
+        <module name="com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider"/>
+        <module name="org.bouncycastle"/>
+        <module name="javax.api"/>
+        <module name="javax.activation.api"/>
+        <module name="javax.json.api"/>
+        <module name="org.apache.httpcomponents"/>
     </dependencies>
 </module>

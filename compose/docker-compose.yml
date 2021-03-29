@@ -10,13 +10,13 @@ services:
       TZ: UTC
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: admin
-        #KEYCLOAK_DEFAULT_THEME: eosc-kc
 
     command: -c standalone.xml -b 0.0.0.0 --debug *:1044
 
     volumes:
       - ..:/code
       - ./standalone.xml:/opt/jboss/keycloak/standalone/configuration/standalone.xml
+      - ../theme/target/eosc-kc-theme.jar:/opt/jboss/keycloak/standalone/deployments/eosc-kc-theme.jar
       - ../metadata-store/target/keycloak-saml-metadata-store.jar:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar
       - ../metadata-store/src/main/resources/module.xml:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/module.xml
 

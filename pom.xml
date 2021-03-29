@@ -200,6 +200,7 @@
   </dependencyManagement>
   
   <modules>
+    <module>theme</module>
     <module>metadata-store</module>
   </modules>
 
