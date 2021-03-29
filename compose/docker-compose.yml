@@ -1,17 +1,24 @@
 version: "3.5"
 
+volumes:
+  modules:
+
 services:
   kc:
     image: cnafsd/kc-dev:latest
     environment:
       TZ: UTC
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
 
     command: -c standalone.xml -b 0.0.0.0 --debug *:1044
 
     volumes:
-      - ../metadata-store/target/keycloak-saml-metadata-store.jar:/opt/jboss/keycloak/modules/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar
-
+      - ..:/code
+      - ./standalone.xml:/opt/jboss/keycloak/standalone/configuration/standalone.xml
+      - ../metadata-store/target/keycloak-saml-metadata-store.jar:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar
+      - ../metadata-store/src/main/resources/module.xml:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/module.xml
 
     ports:
-      - 8080
+      - "8080:8080"
       - "1044:1044"

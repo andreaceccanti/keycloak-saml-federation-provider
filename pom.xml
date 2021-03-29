@@ -201,8 +201,6 @@
   
   <modules>
     <module>metadata-store</module>
-    <module>aggregate-idp</module>
-    <module>wayf</module>
   </modules>
 
 </project>

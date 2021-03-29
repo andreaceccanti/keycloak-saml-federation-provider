@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
@@ -59,35 +58,20 @@ public class KeycloakDevContainer extends KeycloakContainer {
     super.configure();
     this.withExposedPorts(8080, 8443, 1044);
 
-
     // TODO externalize commands
     this.withCommand("-c standalone.xml", "-Dkeycloak.profile.feature.upload_scripts=enabled",
         "--debug *:1044");
-    String explodedFolderExtensionsJar =
-        "/opt/jboss/keycloak/standalone/deployments/extensions.jar";
+
 
     String mdStoreMountLocation =
         "/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar";
 
-    String deploymentTriggerFile = explodedFolderExtensionsJar + ".dodeploy";
+    String deploymentTriggerFile = mdStoreMountLocation + ".dodeploy";
 
     String classesLocation =
         MountableFile.forClasspathResource(".").getResolvedPath() + "../classes";
 
-    addFileSystemBind(classesLocation, explodedFolderExtensionsJar, BindMode.READ_WRITE,
-        SelinuxContext.SINGLE);
-
-
-    String mdJarLocation = MountableFile.forClasspathResource(".").getResolvedPath()
-        + "../../../metadata-store/target/keycloak-saml-metadata-store.jar";
-
-    Path p;
-    try {
-      p = Path.of(mdJarLocation).toRealPath(LinkOption.NOFOLLOW_LINKS);
-    } catch (IOException e) {
-      throw new AssertionError("KC container instation error: md store not found?");
-    }
-    addFileSystemBind(p.toString(), mdStoreMountLocation, BindMode.READ_WRITE,
+    addFileSystemBind(classesLocation, mdStoreMountLocation, BindMode.READ_WRITE,
         SelinuxContext.SINGLE);
 
     withClasspathResourceMapping("dodeploy", deploymentTriggerFile, BindMode.READ_ONLY);

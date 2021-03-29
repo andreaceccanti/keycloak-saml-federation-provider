@@ -41,6 +41,7 @@ import org.keycloak.utils.MediaType;
 import it.infn.cnaf.sd.kc.metadata.SAMLAggregateMetadataStoreProvider;
 import it.infn.cnaf.sd.kc.metadata.SAMLIdpDescriptor;
 
+
 public class SAMLAggregateIdentityProvider extends AbstractIdentityProvider<SAMLAggregateIdentityProviderConfig> {
 
     private static final String SAML_AGGREGATE_CURRENT_IDP = "saml-aggregate-current-idp";
