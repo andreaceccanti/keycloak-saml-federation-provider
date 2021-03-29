@@ -10,6 +10,7 @@ services:
       TZ: UTC
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: admin
+        #KEYCLOAK_DEFAULT_THEME: eosc-kc
 
     command: -c standalone.xml -b 0.0.0.0 --debug *:1044
 
