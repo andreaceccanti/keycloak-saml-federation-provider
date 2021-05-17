@@ -57,27 +57,52 @@ public class KeycloakDevContainer extends KeycloakContainer {
   protected void configure() {
     super.configure();
     this.withExposedPorts(8080, 8443, 1044);
-
-    // TODO externalize commands
-    this.withCommand("-c standalone.xml", "-Dkeycloak.profile.feature.upload_scripts=enabled",
+    this.withCommand("-c standalone.xml", "-b 0.0.0.0",
+        "-Dkeycloak.profile.feature.upload_scripts=enabled",
         "--debug *:1044");
 
+    String standaloneXmlLocation =
+        MountableFile.forClasspathResource("standalone.xml").getResolvedPath();
 
-    String mdStoreMountLocation =
-        "/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar";
+    String standaloneXmlTargetLocation =
+        "/opt/jboss/keycloak/standalone/configuration/standalone.xml";
 
-    String deploymentTriggerFile = mdStoreMountLocation + ".dodeploy";
+    String moduleXmlLocation = MountableFile.forClasspathResource("module.xml").getResolvedPath();
 
-    String classesLocation =
+    String moduleXmlTargetLocation =
+        "/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/module.xml";
+
+    String mdStoreLocation =
         MountableFile.forClasspathResource(".").getResolvedPath() + "../classes";
 
-    addFileSystemBind(classesLocation, mdStoreMountLocation, BindMode.READ_WRITE,
+    String mdStoreTargetLocation =
+        "/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar";
+
+    String themeLocation =
+        MountableFile.forClasspathResource(".").getResolvedPath() + "../../../theme/target/classes";
+
+    String themeTargetLocation = "/opt/jboss/keycloak/standalone/deployments/eosc-kc-theme.jar";
+    String themeDeploymentTrigger = themeTargetLocation + ".dodeploy";
+
+    String deploymentTriggerFile = mdStoreTargetLocation + ".dodeploy";
+
+    addFileSystemBind(mdStoreLocation, mdStoreTargetLocation, BindMode.READ_WRITE,
+        SelinuxContext.SINGLE);
+
+    addFileSystemBind(standaloneXmlLocation, standaloneXmlTargetLocation, BindMode.READ_ONLY,
+        SelinuxContext.SINGLE);
+
+    addFileSystemBind(moduleXmlLocation, moduleXmlTargetLocation, BindMode.READ_ONLY,
+        SelinuxContext.SINGLE);
+
+    addFileSystemBind(themeLocation, themeTargetLocation, BindMode.READ_ONLY,
         SelinuxContext.SINGLE);
 
     withClasspathResourceMapping("dodeploy", deploymentTriggerFile, BindMode.READ_ONLY);
+    withClasspathResourceMapping("dodeploy", themeDeploymentTrigger, BindMode.READ_ONLY);
 
     if (isClassFolderChangeTrackingEnabled()) {
-      registerClassFolderWatcher(Paths.get(classesLocation).normalize(),
+      registerClassFolderWatcher(Paths.get(mdStoreLocation).normalize(),
           Set.of(new File(deploymentTriggerFile).getName()), (watchEvent) -> {
             System.out.println(
                 "Detected change... trigger redeployment. changed file: " + watchEvent.context());

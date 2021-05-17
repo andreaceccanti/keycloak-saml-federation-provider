@@ -1,9 +1,11 @@
 package it.infn.cnaf.sd.kc.idp;
 
+import org.keycloak.Config.Scope;
 import org.keycloak.broker.provider.AbstractIdentityProviderFactory;
 import org.keycloak.models.IdentityProviderModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.saml.validators.DestinationValidator;
 
 public class SAMLAggregateIdentityProviderFactory
     extends AbstractIdentityProviderFactory<SAMLAggregateIdentityProvider> {
@@ -13,6 +15,8 @@ public class SAMLAggregateIdentityProviderFactory
 
   private KeycloakSessionFactory sessionFactory;
 
+  private DestinationValidator destinationValidator;
+
   public SAMLAggregateIdentityProviderFactory() {
     // empty on purpose
   }
@@ -20,6 +24,12 @@ public class SAMLAggregateIdentityProviderFactory
   @Override
   public void postInit(KeycloakSessionFactory factory) {
     this.sessionFactory = factory;
+  }
+
+  @Override
+  public void init(Scope config) {
+    this.destinationValidator =
+        DestinationValidator.forProtocolMap(config.getArray("knownProtocols"));
   }
 
   @Override
@@ -44,10 +54,9 @@ public class SAMLAggregateIdentityProviderFactory
   public SAMLAggregateIdentityProvider create(KeycloakSession session,
       IdentityProviderModel model) {
 
-
     SAMLAggregateIdentityProviderConfig config = new SAMLAggregateIdentityProviderConfig(model);
-
-    return new SAMLAggregateIdentityProvider(session, config);
+    return new SAMLAggregateIdentityProvider(session, config, destinationValidator);
   }
+
 
 }

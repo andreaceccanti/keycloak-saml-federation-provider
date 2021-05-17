@@ -7,12 +7,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
@@ -22,7 +25,6 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.managers.RealmManager;
-import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.services.util.CacheControlUtil;
 import org.keycloak.theme.FreeMarkerException;
 import org.keycloak.theme.FreeMarkerUtil;
@@ -35,12 +37,15 @@ import it.infn.cnaf.sd.kc.metadata.SAMLAggregateMetadataStoreProvider;
 import it.infn.cnaf.sd.kc.metadata.SAMLIdpDescriptor;
 
 
-@Path("/realms")
-public class SAMLAggregateWayfResource implements RealmResourceProvider {
+public class SAMLAggregateWayfResource {
 
   protected static final Logger LOG = Logger.getLogger(SAMLAggregateWayfResource.class);
 
   private KeycloakSession session;
+
+  @Context
+  private HttpServletRequest servletRequest;
+
 
   public SAMLAggregateWayfResource(KeycloakSession session) {
     this.session = session;
@@ -57,16 +62,18 @@ public class SAMLAggregateWayfResource implements RealmResourceProvider {
   }
 
   @GET
-  @Path("{realm}/saml-wayf-page")
+  @Path("page")
   @Produces(MediaType.TEXT_HTML)
   public Response getWayfPage(final @PathParam("realm") String name,
-      @QueryParam("provider") String providerAlias, @QueryParam("sessionCode") String sessionCode,
-      @QueryParam("tabId") String tabId, @QueryParam("clientId") String clientId)
+      @QueryParam("provider") String providerAlias, @Context HttpServletRequest httpRequest)
       throws IOException, FreeMarkerException {
+
     if (Strings.isNullOrEmpty(providerAlias)) {
       throw new ErrorResponseException("Bad request", "Please specify a provider",
           Response.Status.BAD_REQUEST);
     }
+
+    HttpSession httpSession = httpRequest.getSession(false);
 
     RealmModel realm = init(name);
 
@@ -96,7 +103,7 @@ public class SAMLAggregateWayfResource implements RealmResourceProvider {
   }
 
   @GET
-  @Path("{realm}/saml-wayf")
+  @Path("")
   @Produces(MediaType.APPLICATION_JSON)
   public Response lookupIdps(final @PathParam("realm") String name,
       @QueryParam("provider") String providerAlias, @QueryParam("q") String matchString) {
@@ -149,12 +156,5 @@ public class SAMLAggregateWayfResource implements RealmResourceProvider {
     return repr;
   }
 
-  @Override
-  public void close() {}
-
-  @Override
-  public Object getResource() {
-    return this;
-  }
 
 }

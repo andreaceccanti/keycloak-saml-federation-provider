@@ -1,6 +1,6 @@
 {
     "themes": [{
         "name" : "eosc-kc",
-        "types": [ "admin"]
+        "types": [ "admin", "login"]
     }]
 }

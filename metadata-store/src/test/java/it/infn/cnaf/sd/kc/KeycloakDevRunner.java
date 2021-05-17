@@ -15,7 +15,8 @@ public class KeycloakDevRunner {
     kc.withFixedExposedPort(1044, 1044);
     kc.withClassFolderChangeTrackingEnabled(true);
 
-    // kc.withRealmImportFile("test-realm.json");
+    kc.withRealmImportFile("realm-export.json");
+
     kc.start();
 
     class StdoutConsumer extends BaseConsumer<StdoutConsumer> {

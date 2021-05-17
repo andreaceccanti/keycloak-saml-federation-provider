@@ -12,7 +12,7 @@ public class SAMLAggregateWayfResourceFactory implements RealmResourceProviderFa
 
   @Override
   public RealmResourceProvider create(KeycloakSession session) {
-    return new SAMLAggregateWayfResource(session);
+    return new SAMLAggregateWayfRealmResourceProvider(session);
   }
 
   @Override
