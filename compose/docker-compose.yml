@@ -5,7 +5,7 @@ volumes:
 
 services:
   kc:
-    image: cnafsd/kc-dev:latest
+    image: cnafsd/eosc-kc:latest
     environment:
       TZ: UTC
       KEYCLOAK_USER: admin

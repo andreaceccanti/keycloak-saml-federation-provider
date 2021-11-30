@@ -10,7 +10,7 @@ import org.keycloak.saml.validators.DestinationValidator;
 public class SAMLAggregateIdentityProviderFactory
     extends AbstractIdentityProviderFactory<SAMLAggregateIdentityProvider> {
 
-  public static final String PROVIDER_ID = "saml-aggregate";
+  public static final String PROVIDER_ID = "samlaggregate";
   public static final String PROVIDER_NAME = "SAML v2.0 Aggregate";
 
   private KeycloakSessionFactory sessionFactory;

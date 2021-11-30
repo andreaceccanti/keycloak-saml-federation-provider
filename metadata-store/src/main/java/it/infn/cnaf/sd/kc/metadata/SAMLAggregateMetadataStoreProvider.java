@@ -16,4 +16,6 @@ public interface SAMLAggregateMetadataStoreProvider extends Provider {
       String entityId);
 
   List<SAMLIdpDescriptor> lookupEntities(RealmModel realm, String providerAlias, String query);
+
+  List<SAMLIdpDescriptor> getEntities(RealmModel realm, String providerAlias);
 }

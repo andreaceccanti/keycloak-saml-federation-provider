@@ -13,7 +13,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import org.apache.commons.compress.utils.Lists;
 import org.infinispan.Cache;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
 import org.infinispan.configuration.global.GlobalConfigurationBuilder;
@@ -25,10 +24,13 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.saml.common.exceptions.ParsingException;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
 
 public class InMemorySAMLAggregateMetadataStoreProvider
     implements SAMLAggregateMetadataStoreProvider {
+
 
   public static final long MAX_IDP_RESULTS = 20;
 
@@ -41,7 +43,7 @@ public class InMemorySAMLAggregateMetadataStoreProvider
   private final EmbeddedCacheManager cacheManager;
   private final Cache<String, Map<String, SAMLIdpDescriptor>> metadataStore;
 
-  private final Set<SAMLMetadataRegisteredProvider> registeredProviders = Sets.newHashSet();
+  private final Set<RegisteredProvider> registeredProviders = Sets.newHashSet();
 
   private final SAMLAggregateParser parser = new SAMLAggregateParser();
 
@@ -90,8 +92,8 @@ public class InMemorySAMLAggregateMetadataStoreProvider
       LOG.infov("Parsed {0} entities from {1} for provider {2}", mdMap.keySet().size(), metadataUrl,
           providerKey);
 
-      registeredProviders
-        .add(SAMLMetadataRegisteredProvider.builder().providerKey(providerKey).metadataUrl(metadataUrl).build());
+      registeredProviders.add(
+          RegisteredProvider.builder().providerKey(providerKey).metadataUrl(metadataUrl).build());
 
       metadataStore.put(metadataUrl, mdMap);
 
@@ -111,7 +113,7 @@ public class InMemorySAMLAggregateMetadataStoreProvider
 
     final String providerKey = providerKey(realm, providerAlias);
 
-    SAMLMetadataRegisteredProvider provider = registeredProviders.stream()
+    RegisteredProvider provider = registeredProviders.stream()
       .filter(p -> p.getProviderKey().equals(providerKey(realm, providerAlias)))
       .findAny()
       .orElseThrow(() -> new RuntimeException("Unknown provider: " + providerKey));
@@ -137,7 +139,7 @@ public class InMemorySAMLAggregateMetadataStoreProvider
 
     final String providerKey = providerKey(realm, providerAlias);
 
-    SAMLMetadataRegisteredProvider provider = registeredProviders.stream()
+    RegisteredProvider provider = registeredProviders.stream()
       .filter(p -> p.getProviderKey().equals(providerKey(realm, providerAlias)))
       .findAny()
       .orElseThrow(() -> new RuntimeException("Unknown provider: " + providerKey));
@@ -166,10 +168,31 @@ public class InMemorySAMLAggregateMetadataStoreProvider
   }
 
   @Override
+  public List<SAMLIdpDescriptor> getEntities(RealmModel realm, String providerAlias) {
+
+    final String providerKey = providerKey(realm, providerAlias);
+
+    RegisteredProvider provider = registeredProviders.stream()
+      .filter(p -> p.getProviderKey().equals(providerKey(realm, providerAlias)))
+      .findAny()
+      .orElseThrow(() -> new RuntimeException("Unknown provider: " + providerKey));
+
+    if (isNull(metadataStore.get(provider.getMetadataUrl()))) {
+      throw new RuntimeException("No metadata found for provider: " + providerKey);
+    }
+
+    return metadataStore.get(provider.getMetadataUrl())
+      .values()
+      .stream()
+      .limit(MAX_IDP_RESULTS)
+      .collect(toList());
+  }
+
+  @Override
   public boolean cleanupMetadata(RealmModel realm, String providerAlias) {
     final String providerKey = providerKey(realm, providerAlias);
 
-    SAMLMetadataRegisteredProvider provider = registeredProviders.stream()
+    RegisteredProvider provider = registeredProviders.stream()
       .filter(p -> p.getProviderKey().equals(providerKey))
       .findAny()
       .orElse(null);

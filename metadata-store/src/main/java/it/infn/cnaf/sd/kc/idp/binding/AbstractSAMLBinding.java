@@ -365,11 +365,11 @@ public abstract class AbstractSAMLBinding implements SAMLBinding {
       String statusMessage =
           responseType.getStatus() == null ? Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR
               : responseType.getStatus().getStatusMessage();
-      return endpoint.getCallback().error(relayState, statusMessage);
+      return endpoint.getCallback().error(statusMessage);
     }
 
     if (responseType.getAssertions() == null || responseType.getAssertions().isEmpty()) {
-      return endpoint.getCallback().error(relayState, Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR);
+      return endpoint.getCallback().error(Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR);
     }
 
     try {
@@ -499,7 +499,7 @@ public abstract class AbstractSAMLBinding implements SAMLBinding {
         identity.setBrokerSessionId(identity.getBrokerUserId() + "." + authn.getSessionIndex());
       }
 
-      identity.setCode(relayState);
+      //identity.setCode(relayState);
 
       return endpoint.getCallback().authenticated(identity);
     } catch (WebApplicationException e) {
