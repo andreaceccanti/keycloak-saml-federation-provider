@@ -10,8 +10,6 @@ To have the required dependencies, checkout this branch:
 
 https://github.com/enricovianello/keycloak/tree/cnafsd
 
-https://github.com/eosc-kc/keycloak/tree/metadata-enchancments
-
 and install it locally:
 
 ```
