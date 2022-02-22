@@ -16,4 +16,9 @@
           <module name="org.infinispan" export="true" /> 
         </dependencies>
     </deployment>
+    <sub-deployment name="keycloak-saml-metadata-store.jar">
+        <module name="org.infinispan.commons" />
+              <module name="org.infinispan" />
+      </sub-deployment>
+    <ear-subdeployments-isolated>false</ear-subdeployments-isolated>
 </jboss-deployment-structure>

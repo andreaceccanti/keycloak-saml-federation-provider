@@ -1,31 +1,27 @@
 package it.infn.cnaf.sd.kc.samlaggregate.authenticator;
 
+import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.net.URI;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import javax.ws.rs.core.UriBuilder;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.platform.engine.support.descriptor.AbstractTestDescriptor;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.AuthenticationManagementResource;
 import org.keycloak.constants.ServiceUrlConstants;
 import org.keycloak.protocol.oidc.utils.PkceUtils;
 import org.keycloak.representations.idm.AuthenticatorConfigRepresentation;
-import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +29,6 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import static io.restassured.RestAssured.given;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 
@@ -106,7 +100,7 @@ public class SAMLAggregateAuthenticatorTest {
     }
 
     @Test
-    void testSamlAggregateAuthenticatorRedirection() {
+    void testSamlAggregateAuthenticatorRedirectionToWayf() {
 
       final String PKCE_METHOD = "S256";
       final String RESPONSE_TYPE = "code";
@@ -135,7 +129,7 @@ public class SAMLAggregateAuthenticatorTest {
       String loginUrl = String.format("%s/realms/%s/protocol/openid-connect/auth?%s=%s&%s=%s&%s=%s&%s=%s&%s=%s&%s=%s&%s=%s&%s=%s", authServerUrl, REALM_TEST, "samlaggregate", "edugain", OAuth2Constants.CLIENT_ID, clientId, OAuth2Constants.CODE_CHALLENGE, codeChallenge, OAuth2Constants.CODE_CHALLENGE_METHOD, PKCE_METHOD, OAuth2Constants.STATE, state, OAuth2Constants.SCOPE, SCOPE, OAuth2Constants.RESPONSE_TYPE, RESPONSE_TYPE, OAuth2Constants.REDIRECT_URI, redirectUri);
 
 //      given().get(authServerUrl + "/realms/sp/protocol/openid-connect/auth").then().assertThat().statusCode(200);
-      given().get(loginUrl).then().assertThat().statusCode(303);
+      given().get(loginUrl).then().assertThat().statusCode(200);
 
     }
 

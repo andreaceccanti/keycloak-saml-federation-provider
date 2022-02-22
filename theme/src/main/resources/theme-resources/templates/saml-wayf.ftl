@@ -18,7 +18,6 @@
             </div>
             <div class="${properties.kcFormGroupClass!}">
                <input type="hidden" name="provider" value="${provider}" />
-               
                <input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
                    name="wayf-login" id="kc-wayf-login" type="submit" value="${properties.wayfDoLogin}"/>
             </div>

@@ -10,6 +10,7 @@ services:
       TZ: UTC
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: admin
+      KEYCLOAK_LOGLEVEL: DEBUG
 
     command: -c standalone.xml -b 0.0.0.0 --debug *:1044
 
@@ -21,5 +22,5 @@ services:
       - ../metadata-store/src/main/resources/module.xml:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/module.xml
 
     ports:
-      - "8080:8080"
+      - "8081:8080"
       - "1044:1044"

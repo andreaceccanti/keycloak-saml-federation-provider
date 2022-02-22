@@ -1,6 +1,7 @@
 package it.infn.cnaf.sd.kc.idp;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.ws.rs.core.Response;
@@ -10,18 +11,24 @@ import org.jboss.logging.Logger;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.broker.provider.AbstractIdentityProvider;
 import org.keycloak.broker.provider.AuthenticationRequest;
+import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityProviderDataMarshaller;
 import org.keycloak.broker.saml.SAMLDataMarshaller;
+import org.keycloak.constants.AdapterConstants;
 import org.keycloak.constants.ServiceUrlConstants;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.FederatedIdentityModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.utils.PkceUtils;
+import org.keycloak.saml.SignatureAlgorithm;
 import org.keycloak.saml.validators.DestinationValidator;
-import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
+import it.infn.cnaf.sd.kc.metadata.SAMLAggregateMetadataStoreProvider;
 import it.infn.cnaf.sd.kc.metadata.SAMLIdpDescriptor;
+import it.infn.cnaf.sd.kc.samlaggregate.authenticator.SAMLAggregateAuthenticator;
 
 
 public class SAMLAggregateIdentityProvider
@@ -40,6 +47,10 @@ public class SAMLAggregateIdentityProvider
       SAMLAggregateIdentityProviderConfig config, DestinationValidator destinationValidator) {
     super(session, config);
     this.destinationValidator = destinationValidator;
+
+    SAMLAggregateMetadataStoreProvider md =
+        session.getProvider(SAMLAggregateMetadataStoreProvider.class);
+    md.parseMetadata(session.getContext().getRealm(), config.getAlias(), config.getMetadataUrl());
   }
 
   @Override
@@ -51,6 +62,11 @@ public class SAMLAggregateIdentityProvider
   @Override
   public Response performLogin(AuthenticationRequest request) {
 
+    return doRedirectionToWayf(request);
+  }
+
+  private Response doRedirectionToWayf(AuthenticationRequest request) {
+
     String state = UUID.randomUUID().toString();
     String codeVerifier = PkceUtils.generateCodeVerifier();
     String codeChallenge = PkceUtils.encodeCodeChallenge(codeVerifier, PKCE_METHOD);
@@ -61,7 +77,7 @@ public class SAMLAggregateIdentityProvider
       .toString();
 
     URI authUri = UriBuilder.fromPath(ServiceUrlConstants.AUTH_PATH)
-      .queryParam("samlaggregate", getConfig().getAlias())
+      .queryParam(AdapterConstants.KC_IDP_HINT, getConfig().getAlias())
       .queryParam(OAuth2Constants.CODE_CHALLENGE, codeChallenge)
       .queryParam(OAuth2Constants.CODE_CHALLENGE_METHOD, PKCE_METHOD)
       .queryParam(OAuth2Constants.CLIENT_ID, clientId)
@@ -69,6 +85,7 @@ public class SAMLAggregateIdentityProvider
       .queryParam(OAuth2Constants.SCOPE, SCOPE)
       .queryParam(OAuth2Constants.RESPONSE_TYPE, RESPONSE_TYPE)
       .queryParam(OAuth2Constants.REDIRECT_URI, redirectUri)
+      .queryParam(SAMLAggregateAuthenticator.SAML_AGGREGATE_AUTH_PROVIDER, getConfig().getAlias())
       .build(request.getRealm().getName());
 
     return Response.temporaryRedirect(authUri).build();
@@ -77,16 +94,52 @@ public class SAMLAggregateIdentityProvider
   @Override
   public Object callback(RealmModel realm, AuthenticationCallback callback, EventBuilder event) {
 
-    String idp = (String) session.getAttribute("idp");
+    String entityId = (String) session.getAttribute("idp");
 
-    SAMLIdpDescriptor descriptor = null;
-    return new SAMLAggregateEndpoint(realm, this, getConfig(), callback, descriptor,
-        destinationValidator);
+    SAMLAggregateMetadataStoreProvider md =
+        session.getProvider(SAMLAggregateMetadataStoreProvider.class);
+    Optional<SAMLIdpDescriptor> descriptor =
+        md.lookupIdpByEntityId(realm, getConfig().getAlias(), entityId);
+    if (descriptor.isEmpty()) {
+      throw new RuntimeException("descriptor not found");
+    }
+    return new SAMLAggregateEndpoint(realm, this, getConfig(), callback, destinationValidator,
+        descriptor.get());
   }
 
-//  @Override
-//  public IdentityProviderDataMarshaller getMarshaller() {
-//    return new SAMLDataMarshaller();
-//  }
+  public SignatureAlgorithm getSignatureAlgorithm() {
+    String alg = getConfig().getSignatureAlgorithm();
+    if (alg != null) {
+      SignatureAlgorithm algorithm = SignatureAlgorithm.valueOf(alg);
+      if (algorithm != null)
+        return algorithm;
+    }
+    return SignatureAlgorithm.RSA_SHA256;
+  }
 
+
+  @Override
+  public IdentityProviderDataMarshaller getMarshaller() {
+    return new SAMLDataMarshaller();
+  }
+
+  @Override
+  public void authenticationFinished(AuthenticationSessionModel authSession, BrokeredIdentityContext context) {
+
+  }
+
+  @Override
+  public void preprocessFederatedIdentity(KeycloakSession session, RealmModel realm, BrokeredIdentityContext context) {
+
+  }
+
+  @Override
+  public void importNewUser(KeycloakSession session, RealmModel realm, UserModel user, BrokeredIdentityContext context) {
+
+  }
+
+  @Override
+  public void updateBrokeredUser(KeycloakSession session, RealmModel realm, UserModel user, BrokeredIdentityContext context) {
+
+  }
 }

@@ -17,18 +17,17 @@ public class InMemorySAMLAggregateMetadataStoreProviderFactory
     if (INSTANCE == null) {
       INSTANCE = new InMemorySAMLAggregateMetadataStoreProvider(session);
     }
-    
     return INSTANCE;
   }
 
   @Override
   public void init(Scope config) {
-    // nothing to do here
+    System.out.println("init InMemorySAMLAggregateMetadataStoreProviderFactory");
   }
 
   @Override
   public void postInit(KeycloakSessionFactory factory) {
-    // nothing to do here
+    System.out.println("postInit InMemorySAMLAggregateMetadataStoreProviderFactory");
   }
 
   @Override

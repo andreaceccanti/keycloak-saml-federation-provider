@@ -56,6 +56,7 @@ public class KeycloakDevContainer extends KeycloakContainer {
   @Override
   protected void configure() {
     super.configure();
+    this.withEnv("KEYCLOAK_LOGLEVEL", "DEBUG");
     this.withExposedPorts(8080, 8443, 1044);
     this.withCommand("-c standalone.xml", "-b 0.0.0.0",
         "-Dkeycloak.profile.feature.upload_scripts=enabled",

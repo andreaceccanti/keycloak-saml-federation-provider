@@ -1,5 +1,6 @@
 package it.infn.cnaf.sd.kc.samlaggregate.resources;
 
+import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.Config.Scope;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -12,7 +13,10 @@ public class SAMLAggregateBrokerResourceProviderFactory implements RealmResource
 
   @Override
   public RealmResourceProvider create(KeycloakSession session) {
-    return new SAMLAggregateBrokerResource(session);
+    SAMLAggregateBrokerResource brokerService = new SAMLAggregateBrokerResource(session);
+    ResteasyProviderFactory.getInstance().injectProperties(brokerService);
+    brokerService.init();
+    return brokerService;
   }
 
   @Override

@@ -1,83 +1,78 @@
 package it.infn.cnaf.sd.kc.samlaggregate.resources;
 
+import static it.infn.cnaf.sd.kc.samlaggregate.authenticator.SAMLAggregateAuthenticator.SAML_AGGREGATE_AUTH_PROVIDER;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.spi.HttpRequest;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.authentication.AuthenticationProcessor;
-import org.keycloak.authentication.authenticators.broker.AbstractIdpAuthenticator;
-import org.keycloak.authentication.authenticators.broker.util.SerializedBrokeredIdentityContext;
 import org.keycloak.broker.provider.AuthenticationRequest;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.provider.IdentityProvider;
 import org.keycloak.broker.provider.IdentityProviderFactory;
-import org.keycloak.broker.provider.IdentityProviderMapper;
-import org.keycloak.broker.saml.SAMLEndpoint;
+import org.keycloak.broker.provider.util.IdentityBrokerState;
 import org.keycloak.broker.social.SocialIdentityProvider;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.constants.ServiceUrlConstants;
 import org.keycloak.dom.saml.v2.protocol.AuthnRequestType;
-import org.keycloak.dom.saml.v2.protocol.StatusResponseType;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationFlowModel;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
-import org.keycloak.models.FederatedIdentityModel;
 import org.keycloak.models.IdentityProviderModel;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.AuthenticationFlowResolver;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.protocol.LoginProtocol;
+import org.keycloak.protocol.oidc.utils.RedirectUtils;
 import org.keycloak.protocol.saml.JaxrsSAML2BindingBuilder;
 import org.keycloak.protocol.saml.SamlProtocol;
-import org.keycloak.protocol.saml.SamlSessionUtils;
-import org.keycloak.protocol.saml.preprocessor.SamlAuthenticationPreprocessor;
 import org.keycloak.saml.SAML2AuthnRequestBuilder;
 import org.keycloak.saml.SAML2NameIDPolicyBuilder;
-import org.keycloak.saml.common.constants.GeneralConstants;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
+import org.keycloak.services.ErrorPage;
 import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.managers.AuthenticationSessionManager;
 import org.keycloak.services.managers.ClientSessionCode;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resource.RealmResourceProvider;
+import org.keycloak.services.resources.IdentityBrokerService;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.services.resources.RealmsResource;
+import org.keycloak.services.resources.SessionCodeChecks;
 import org.keycloak.services.resources.account.AccountFormService;
-import org.keycloak.services.util.AuthenticationFlowURLHelper;
+import org.keycloak.services.util.BrowserHistoryHelper;
 import org.keycloak.services.util.CacheControlUtil;
-import org.keycloak.services.validation.Validation;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.util.JsonSerialization;
 
 import com.google.common.base.Strings;
@@ -90,46 +85,69 @@ public class SAMLAggregateBrokerResource
 
   protected static final Logger LOG = Logger.getLogger(SAMLAggregateBrokerResource.class);
 
+  private final RealmModel realmModel;
+
+  @Context
+  private KeycloakSession session;
+
+  @Context
+  private ClientConnection clientConnection;
+
   @Context
   private HttpRequest request;
 
   @Context
   private HttpHeaders headers;
 
-  private KeycloakSession session;
-
   private EventBuilder event;
 
   public SAMLAggregateBrokerResource(KeycloakSession session) {
-    this.session = session;
-    this.event = new EventBuilder(session.getContext().getRealm(), session,
-        session.getContext().getConnection());
+    this.realmModel = session.getContext().getRealm();
+  }
+
+  public void init() {
+    this.event = new EventBuilder(realmModel, session, clientConnection)
+      .event(EventType.IDENTITY_PROVIDER_LOGIN);
   }
 
   @GET
   @Path("{provider}/login")
-  @Produces(MediaType.TEXT_HTML)
+  @Produces(MediaType.APPLICATION_FORM_URLENCODED)
   public Response login(final @PathParam("provider") String provider,
       final @QueryParam("idp") String idp) throws URISyntaxException, SAMLAggregateBrokerException {
 
-    if (Strings.isNullOrEmpty(idp)) {
-      return redirectToWAYF(provider);
-    }
-
     RealmModel realm = session.getContext().getRealm();
-    String issuerURL = getEntityId(provider);
+
+    ClientModel client =
+        session.clients().getClientByClientId(realm, Constants.ACCOUNT_CONSOLE_CLIENT_ID);
+
+    AuthenticationSessionModel authSession = createAuthenticationSession(realm, client);
+    authSession.setProtocol(SamlProtocol.LOGIN_PROTOCOL);
+    authSession.setRedirectUri(RedirectUtils.getFirstValidRedirectUri(session, client.getRootUrl(), client.getRedirectUris()));
+
+    ClientSessionCode<AuthenticationSessionModel> clientSessionCode =
+        new ClientSessionCode<>(session, realm, authSession);
+    clientSessionCode.setAction(AuthenticationSessionModel.Action.AUTHENTICATE.name());
+
+    if (Strings.isNullOrEmpty(provider)) {
+      return redirectToLoginPage(realm);
+    }
+    if (Strings.isNullOrEmpty(idp)) {
+      return redirectToWAYF(realm, provider);
+    }
 
     IdentityProviderModel identityProviderModel = realm.getIdentityProviderByAlias(provider);
     if (identityProviderModel == null) {
-      throw new SAMLAggregateBrokerException("Identity Provider [" + provider + "] not found.");
+      return redirectToBadRequest("Identity Provider [" + provider + "] not found.");
     }
     if (identityProviderModel.isLinkOnly()) {
-      throw new SAMLAggregateBrokerException(
+      return redirectToBadRequest(
           "Identity Provider [" + provider + "] is not allowed to perform a login.");
     }
-    // identityProviderModel.getConfig();
 
-    // SAMLAggregateIdentityProviderConfig config = identityProvider.;
+    String issuerURL = getIssuer(provider);
+
+    // SAMLAggregateIdentityProviderConfig config = null;
     // if (identityProviderModel.getConfig() instanceof SAMLAggregateIdentityProviderConfig) {
     // config = (SAMLAggregateIdentityProviderConfig) identityProviderModel.getConfig();
     // } else {
@@ -153,9 +171,10 @@ public class SAMLAggregateBrokerResource
     Boolean isForceAuthn = false; // to-do use config.isForceAuthn();
     boolean postBinding = idpDescr.isPostBindingResponse();
 
-    try {
+    AuthenticationRequest request = createAuthenticationRequest(session, realm, this.request,
+        provider, clientSessionCode, assertionConsumerServiceUrl);
 
-      // UriInfo uriInfo = request.getUriInfo();
+    try {
 
       SAML2AuthnRequestBuilder authnRequestBuilder =
           new SAML2AuthnRequestBuilder().assertionConsumerUrl(assertionConsumerServiceUrl)
@@ -164,14 +183,10 @@ public class SAMLAggregateBrokerResource
             .forceAuthn(isForceAuthn)
             .protocolBinding(protocolBinding)
             .nameIdPolicy(SAML2NameIDPolicyBuilder.format(nameIDPolicyFormat));
-      JaxrsSAML2BindingBuilder binding = new JaxrsSAML2BindingBuilder(session);
+      JaxrsSAML2BindingBuilder binding =
+          new JaxrsSAML2BindingBuilder(session).relayState(request.getState().getEncoded());
 
       AuthnRequestType authnRequest = authnRequestBuilder.createAuthnRequest();
-      // for(Iterator<SamlAuthenticationPreprocessor> it =
-      // SamlSessionUtils.getSamlAuthenticationPreprocessorIterator(session); it.hasNext(); ) {
-      // authnRequest = it.next().beforeSendingLoginRequest(authnRequest,
-      // request.getAuthenticationSession());
-      // }
 
       if (authnRequest.getDestination() != null) {
         destinationUrl = authnRequest.getDestination().toString();
@@ -179,8 +194,7 @@ public class SAMLAggregateBrokerResource
 
       // Save the current RequestID in the Auth Session as we need to verify it against the ID
       // returned from the IdP
-      // request.getAuthenticationSession().setClientNote(SamlProtocol.SAML_REQUEST_ID,
-      // authnRequest.getID());
+      authSession.setClientNote(SamlProtocol.SAML_REQUEST_ID, authnRequest.getID());
 
       if (postBinding) {
         return binding.postBinding(authnRequestBuilder.toDocument()).request(destinationUrl);
@@ -188,15 +202,56 @@ public class SAMLAggregateBrokerResource
         return binding.redirectBinding(authnRequestBuilder.toDocument()).request(destinationUrl);
       }
     } catch (Exception e) {
-      throw new IdentityBrokerException("Could not create authentication request.", e);
+      throw new SAMLAggregateBrokerException("Could not create authentication request.", e);
     }
-
-    // return Response.ok("Got idp " + idp).build();
   }
 
-  private Response redirectToWAYF(String provider) {
-    // TODO Auto-generated method stub
+  private AuthenticationRequest createAuthenticationRequest(KeycloakSession session,
+      RealmModel realm, HttpRequest request, String providerId,
+      ClientSessionCode<AuthenticationSessionModel> clientSessionCode, String redirectUri) {
+    AuthenticationSessionModel authSession = null;
+    IdentityBrokerState encodedState = null;
+
+    if (clientSessionCode != null) {
+      authSession = clientSessionCode.getClientSession();
+      String relayState = clientSessionCode.getOrGenerateCode();
+      encodedState = IdentityBrokerState.decoded(relayState, authSession.getClient().getClientId(),
+          authSession.getTabId());
+    }
+
+    return new AuthenticationRequest(session, realm, authSession, request,
+        session.getContext().getUri(), encodedState, redirectUri);
+  }
+
+  private AuthenticationSessionModel createAuthenticationSession(RealmModel realm,
+      ClientModel client) {
+
+    AuthenticationSessionManager manager = new AuthenticationSessionManager(session);
+    RootAuthenticationSessionModel rootAuthSession =
+        manager.getCurrentRootAuthenticationSession(realm);
+
+    if (rootAuthSession != null) {
+      return rootAuthSession.createAuthenticationSession(client);
+    }
     return null;
+  }
+
+  private Response redirectToWAYF(RealmModel realm, String provider) {
+    return Response
+      .temporaryRedirect(UriBuilder.fromPath(ServiceUrlConstants.ACCOUNT_SERVICE_PATH)
+        .queryParam(SAML_AGGREGATE_AUTH_PROVIDER, provider)
+        .build(realm.getName()))
+      .build();
+  }
+
+  private Response redirectToLoginPage(RealmModel realm) {
+    return Response
+      .temporaryRedirect(UriBuilder.fromPath(ServiceUrlConstants.AUTH_PATH).build(realm.getName()))
+      .build();
+  }
+
+  private Response redirectToBadRequest(String message) {
+    return Response.status(Status.BAD_REQUEST).entity(message).build();
   }
 
   private String getRedirectUri(String providerAlias, String idp) {
@@ -211,7 +266,7 @@ public class SAMLAggregateBrokerResource
       .toString();
   }
 
-  private String getEntityId(String providerAlias) {
+  private String getIssuer(String providerAlias) {
 
     return UriBuilder.fromUri(session.getContext().getAuthServerUrl())
       .path("realms")
@@ -238,7 +293,9 @@ public class SAMLAggregateBrokerResource
   }
 
   @Path("{provider}/authenticate")
-  public Object authenticate(@PathParam("provider") String providerAlias, @QueryParam("idp") String idp) {
+  public Object authenticate(@PathParam("provider") String providerAlias,
+      @QueryParam("idp") String idp) {
+
     IdentityProvider<?> identityProvider;
 
     try {
@@ -255,7 +312,8 @@ public class SAMLAggregateBrokerResource
   }
 
   public static IdentityProvider<?> getIdentityProvider(KeycloakSession session, String alias) {
-    IdentityProviderModel identityProviderModel = session.getContext().getRealm().getIdentityProviderByAlias(alias);
+    IdentityProviderModel identityProviderModel =
+        session.getContext().getRealm().getIdentityProviderByAlias(alias);
 
     if (identityProviderModel != null) {
       IdentityProviderFactory<?> providerFactory =
@@ -296,150 +354,87 @@ public class SAMLAggregateBrokerResource
   @Override
   public AuthenticationSessionModel getAndVerifyAuthenticationSession(String encodedCode) {
 
-    LOG.info("getAndVerifyAuthenticationSession(" + encodedCode + ")");
-    return null;
+    IdentityBrokerState state = IdentityBrokerState.encoded(encodedCode);
+    String code = state.getDecodedState();
+    String clientId = state.getClientId();
+    String tabId = state.getTabId();
+    return parseSessionCode(code, clientId, tabId);
+  }
+
+  /**
+   * This method will throw JAX-RS exception in case it is not able to retrieve
+   * AuthenticationSessionModel. It never returns null
+   */
+  private AuthenticationSessionModel parseSessionCode(String code, String clientId, String tabId) {
+    if (code == null || clientId == null || tabId == null) {
+      LOG.debugf(
+          "Invalid request. Authorization code, clientId or tabId was null. Code=%s, clientId=%s, tabID=%s",
+          code, clientId, tabId);
+      Response staleCodeError =
+          redirectToErrorPage(Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
+      throw new WebApplicationException(staleCodeError);
+    }
+
+    SessionCodeChecks checks = new SessionCodeChecks(session.getContext().getRealm(),
+        session.getContext().getUri(), request, clientConnection, session, event, null, code, null,
+        clientId, tabId, LoginActionsService.AUTHENTICATE_PATH);
+    checks.initialVerify();
+    if (!checks.verifyActiveAndValidAction(AuthenticationSessionModel.Action.AUTHENTICATE.name(),
+        ClientSessionCode.ActionType.LOGIN)) {
+
+      AuthenticationSessionModel authSession = checks.getAuthenticationSession();
+      if (authSession != null) {
+        // Check if error happened during login or during linking from account management
+        Response accountManagementFailedLinking =
+            checkAccountManagementFailedLinking(authSession, Messages.STALE_CODE_ACCOUNT);
+        if (accountManagementFailedLinking != null) {
+          throw new WebApplicationException(accountManagementFailedLinking);
+        } else {
+          Response errorResponse = checks.getResponse();
+
+          // Remove "code" from browser history
+          errorResponse = BrowserHistoryHelper.getInstance()
+            .saveResponseAndRedirect(session, authSession, errorResponse, true, request);
+          throw new WebApplicationException(errorResponse);
+        }
+      } else {
+        throw new WebApplicationException(checks.getResponse());
+      }
+    } else {
+      return checks.getClientCode().getClientSession();
+    }
+  }
+
+  private Response redirectToErrorPage(Response.Status status, String message,
+      Object... parameters) {
+    return redirectToErrorPage(null, status, message, null, parameters);
+  }
+
+  private Response redirectToErrorPage(AuthenticationSessionModel authSession,
+      Response.Status status, String message, Throwable throwable, Object... parameters) {
+    if (message == null) {
+      message = Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR;
+    }
+
+    fireErrorEvent(message, throwable);
+
+    if (throwable != null && throwable instanceof WebApplicationException) {
+      WebApplicationException webEx = (WebApplicationException) throwable;
+      return webEx.getResponse();
+    }
+
+    return ErrorPage.error(this.session, authSession, status, message, parameters);
   }
 
   @Override
   public Response authenticated(BrokeredIdentityContext context) {
 
     LOG.info("authenticated(" + context.toString() + ")");
-    return null;
 
-//    IdentityProviderModel identityProviderConfig = context.getIdpConfig();
-//    AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
-//    RealmModel realmModel = session.getContext().getRealm();
-//
-//    String providerId = identityProviderConfig.getAlias();
-//    if (!identityProviderConfig.isStoreToken()) {
-//      context.setToken(null);
-//    }
-//
-//    StatusResponseType loginResponse =
-//        (StatusResponseType) context.getContextData().get(SAMLEndpoint.SAML_LOGIN_RESPONSE);
-//    if (loginResponse != null) {
-//      for (Iterator<SamlAuthenticationPreprocessor> it =
-//          SamlSessionUtils.getSamlAuthenticationPreprocessorIterator(session); it.hasNext();) {
-//        loginResponse =
-//            it.next().beforeProcessingLoginResponse(loginResponse, authenticationSession);
-//      }
-//    }
-//
-//    session.getContext().setClient(authenticationSession.getClient());
-//
-//    context.getIdp().preprocessFederatedIdentity(session, realmModel, context);
-//    KeycloakSessionFactory sessionFactory = session.getKeycloakSessionFactory();
-//    realmModel.getIdentityProviderMappersByAliasStream(context.getIdpConfig().getAlias())
-//      .forEach(mapper -> {
-//        IdentityProviderMapper target = (IdentityProviderMapper) sessionFactory
-//          .getProviderFactory(IdentityProviderMapper.class, mapper.getIdentityProviderMapper());
-//        target.preprocessFederatedIdentity(session, realmModel, mapper, context);
-//      });
-//
-//    FederatedIdentityModel federatedIdentityModel = new FederatedIdentityModel(providerId,
-//        context.getId(), context.getUsername(), context.getToken());
-//
-//    this.event.event(EventType.IDENTITY_PROVIDER_LOGIN)
-//      .detail(Details.REDIRECT_URI, authenticationSession.getRedirectUri())
-//      .detail(Details.IDENTITY_PROVIDER, providerId)
-//      .detail(Details.IDENTITY_PROVIDER_USERNAME, context.getUsername());
-//
-//    UserModel federatedUser =
-//        this.session.users().getUserByFederatedIdentity(realmModel, federatedIdentityModel);
-//    boolean shouldMigrateId = false;
-//    // try to find the user using legacy ID
-//    if (federatedUser == null && context.getLegacyId() != null) {
-//      federatedIdentityModel =
-//          new FederatedIdentityModel(federatedIdentityModel, context.getLegacyId());
-//      federatedUser =
-//          this.session.users().getUserByFederatedIdentity(realmModel, federatedIdentityModel);
-//      shouldMigrateId = true;
-//    }
-//
-//    // Check if federatedUser is already authenticated (this means linking social into existing
-//    // federatedUser account)
-//    UserSessionModel userSession =
-//        new AuthenticationSessionManager(session).getUserSession(authenticationSession);
-//    if (shouldPerformAccountLinking(authenticationSession, userSession, providerId)) {
-//      return performAccountLinking(authenticationSession, userSession, context,
-//          federatedIdentityModel, federatedUser);
-//    }
-//
-//    if (federatedUser == null) {
-//
-//      LOG.debugf("Federated user not found for provider '%s' and broker username '%s'",
-//          providerId, context.getUsername());
-//
-//      String username = context.getModelUsername();
-//      if (username == null) {
-//        if (realmModel.isRegistrationEmailAsUsername()
-//            && !Validation.isBlank(context.getEmail())) {
-//          username = context.getEmail();
-//        } else if (context.getUsername() == null) {
-//          username = context.getIdpConfig().getAlias() + "." + context.getId();
-//        } else {
-//          username = context.getUsername();
-//        }
-//      }
-//      username = username.trim();
-//      context.setModelUsername(username);
-//
-//      SerializedBrokeredIdentityContext ctx0 =
-//          SerializedBrokeredIdentityContext.readFromAuthenticationSession(authenticationSession,
-//              AbstractIdpAuthenticator.BROKERED_CONTEXT_NOTE);
-//      if (ctx0 != null) {
-//        SerializedBrokeredIdentityContext ctx1 =
-//            SerializedBrokeredIdentityContext.serialize(context);
-//        ctx1.saveToAuthenticationSession(authenticationSession,
-//            AbstractIdpAuthenticator.NESTED_FIRST_BROKER_CONTEXT);
-//        LOG.warnv("Nested first broker flow detected: {0} -> {1}", ctx0.getIdentityProviderId(),
-//            ctx1.getIdentityProviderId());
-//        LOG.debug("Resuming last execution");
-//        URI redirect =
-//            new AuthenticationFlowURLHelper(session, realmModel, session.getContext().getUri())
-//              .getLastExecutionUrl(authenticationSession);
-//        return Response.status(Status.FOUND).location(redirect).build();
-//      }
-//
-//      LOG.debug("Redirecting to flow for firstBrokerLogin");
-//
-//      boolean forwardedPassiveLogin = "true"
-//        .equals(authenticationSession.getAuthNote(AuthenticationProcessor.FORWARDED_PASSIVE_LOGIN));
-//      // Redirect to firstBrokerLogin after successful login and ensure that previous authentication
-//      // state removed
-//      AuthenticationProcessor.resetFlow(authenticationSession,
-//          LoginActionsService.FIRST_BROKER_LOGIN_PATH);
-//
-//      // Set the FORWARDED_PASSIVE_LOGIN note (if needed) after resetting the session so it is not
-//      // lost.
-//      if (forwardedPassiveLogin) {
-//        authenticationSession.setAuthNote(AuthenticationProcessor.FORWARDED_PASSIVE_LOGIN, "true");
-//      }
-//
-//      SerializedBrokeredIdentityContext ctx = SerializedBrokeredIdentityContext.serialize(context);
-//      ctx.saveToAuthenticationSession(authenticationSession,
-//          AbstractIdpAuthenticator.BROKERED_CONTEXT_NOTE);
-//
-//      URI redirect = LoginActionsService.firstBrokerLoginProcessor(session.getContext().getUri())
-//        .queryParam(Constants.CLIENT_ID, authenticationSession.getClient().getClientId())
-//        .queryParam(Constants.TAB_ID, authenticationSession.getTabId())
-//        .build(realmModel.getName());
-//      return Response.status(302).location(redirect).build();
-//
-//    } else {
-//      Response response = validateUser(authenticationSession, federatedUser, realmModel);
-//      if (response != null) {
-//        return response;
-//      }
-//
-//      updateFederatedIdentity(context, federatedUser);
-//      if (shouldMigrateId) {
-//        migrateFederatedIdentityId(context, federatedUser);
-//      }
-//      authenticationSession.setAuthenticatedUser(federatedUser);
-//
-//      return finishOrRedirectToPostBrokerLogin(authenticationSession, context, false);
-//    }
+    IdentityBrokerService brokerService = new IdentityBrokerService(realmModel);
+    ResteasyProviderFactory.getInstance().injectProperties(brokerService);
+    brokerService.init();
+    return brokerService.authenticated(context);
   }
 
   @Override
