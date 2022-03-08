@@ -1,1 +1,2 @@
 it.infn.cnaf.sd.kc.metadata.SAMLAggregateMetadataStoreSpi
+it.infn.cnaf.sd.kc.spi.SAMLAggregateFederatedIdentitySpi

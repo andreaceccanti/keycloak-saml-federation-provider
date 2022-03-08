@@ -3,6 +3,7 @@
         <dependencies>
           <module name="org.keycloak.keycloak-common" export="true" />
           <module name="org.keycloak.keycloak-core" export="true" />
+          <module name="org.keycloak.keycloak-model-jpa" />
           <module name="org.keycloak.keycloak-server-spi"
             export="true" />
           <module name="org.keycloak.keycloak-server-spi-private"
@@ -14,6 +15,8 @@
           <module name="org.jboss.logging" export="true" />
           <module name="org.apache.commons.io" export="true" />
           <module name="org.infinispan" export="true" /> 
+          <module name="org.hibernate" />
+          <module name="javax.persistence.api"/>
         </dependencies>
     </deployment>
     <sub-deployment name="keycloak-saml-metadata-store.jar">

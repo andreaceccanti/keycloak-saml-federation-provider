@@ -29,6 +29,8 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import it.infn.cnaf.sd.kc.metadata.SAMLAggregateMetadataStoreProvider;
 import it.infn.cnaf.sd.kc.metadata.SAMLIdpDescriptor;
 import it.infn.cnaf.sd.kc.samlaggregate.authenticator.SAMLAggregateAuthenticator;
+import it.infn.cnaf.sd.kc.spi.FederatedIdentityRepresentation;
+import it.infn.cnaf.sd.kc.spi.SAMLAggregateFederatedIdentityServiceProvider;
 
 
 public class SAMLAggregateIdentityProvider
@@ -124,22 +126,45 @@ public class SAMLAggregateIdentityProvider
   }
 
   @Override
-  public void authenticationFinished(AuthenticationSessionModel authSession, BrokeredIdentityContext context) {
+  public void authenticationFinished(AuthenticationSessionModel authSession,
+      BrokeredIdentityContext context) {
+
+    String entityId = String.valueOf(context.getContextData().get("ENTITY_ID"));
+
+    SAMLAggregateFederatedIdentityServiceProvider fis =
+        session.getProvider(SAMLAggregateFederatedIdentityServiceProvider.class);
+
+    FederatedIdentityRepresentation fi = new FederatedIdentityRepresentation();
+    fi.setRealmId(authSession.getRealm().getId());
+    fi.setIdentityProvider(getConfig().getProviderId());
+    fi.setFederatedEntityId(entityId);
+    fi.setUserId(authSession.getAuthenticatedUser().getId());
+    fi.setFederatedUserId(context.getBrokerUserId());
+    fi.setFederatedUsername(context.getUsername());
+    fi.setToken(context.getToken());
+
+    fis.addFederatedIdentity(fi);
 
   }
 
   @Override
-  public void preprocessFederatedIdentity(KeycloakSession session, RealmModel realm, BrokeredIdentityContext context) {
+  public void preprocessFederatedIdentity(KeycloakSession session, RealmModel realm,
+      BrokeredIdentityContext context) {
+
+    String entityId = (String) session.getAttribute("idp");
+    context.getContextData().put("ENTITY_ID", entityId);
 
   }
 
   @Override
-  public void importNewUser(KeycloakSession session, RealmModel realm, UserModel user, BrokeredIdentityContext context) {
+  public void importNewUser(KeycloakSession session, RealmModel realm, UserModel user,
+      BrokeredIdentityContext context) {
 
   }
 
   @Override
-  public void updateBrokeredUser(KeycloakSession session, RealmModel realm, UserModel user, BrokeredIdentityContext context) {
+  public void updateBrokeredUser(KeycloakSession session, RealmModel realm, UserModel user,
+      BrokeredIdentityContext context) {
 
   }
 }
