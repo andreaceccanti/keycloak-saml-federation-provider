@@ -10,7 +10,6 @@ public class FederatedIdentityRepresentation {
   private String realmId;
   private String federatedUserId;
   private String federatedUsername;
-  private String token;
 
   public FederatedIdentityRepresentation() {}
 
@@ -22,7 +21,6 @@ public class FederatedIdentityRepresentation {
     realmId = fi.getRealmId();
     federatedUserId = fi.getFederatedUserId();
     federatedUsername = fi.getFederatedUsername();
-    token = fi.getToken();
   }
 
   public String getUserId() {
@@ -71,14 +69,6 @@ public class FederatedIdentityRepresentation {
 
   public void setFederatedUsername(String federatedUsername) {
     this.federatedUsername = federatedUsername;
-  }
-
-  public String getToken() {
-    return token;
-  }
-
-  public void setToken(String token) {
-    this.token = token;
   }
 
 }

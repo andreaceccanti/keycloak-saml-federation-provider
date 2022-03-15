@@ -129,19 +129,25 @@ public class SAMLAggregateIdentityProvider
   public void authenticationFinished(AuthenticationSessionModel authSession,
       BrokeredIdentityContext context) {
 
+    String realmId = authSession.getRealm().getId();
     String entityId = String.valueOf(context.getContextData().get("ENTITY_ID"));
+    String providerId = getConfig().getProviderId();
+    String userId = authSession.getAuthenticatedUser().getId();
 
     SAMLAggregateFederatedIdentityServiceProvider fis =
         session.getProvider(SAMLAggregateFederatedIdentityServiceProvider.class);
 
+    if (fis.findFederatedIdentity(userId, providerId, entityId) != null) {
+      return;
+    }
+
     FederatedIdentityRepresentation fi = new FederatedIdentityRepresentation();
-    fi.setRealmId(authSession.getRealm().getId());
-    fi.setIdentityProvider(getConfig().getProviderId());
+    fi.setRealmId(realmId);
+    fi.setIdentityProvider(providerId);
     fi.setFederatedEntityId(entityId);
-    fi.setUserId(authSession.getAuthenticatedUser().getId());
+    fi.setUserId(userId);
     fi.setFederatedUserId(context.getBrokerUserId());
     fi.setFederatedUsername(context.getUsername());
-    fi.setToken(context.getToken());
 
     fis.addFederatedIdentity(fi);
 

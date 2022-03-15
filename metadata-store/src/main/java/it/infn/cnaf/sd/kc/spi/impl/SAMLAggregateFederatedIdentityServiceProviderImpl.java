@@ -88,7 +88,6 @@ public class SAMLAggregateFederatedIdentityServiceProviderImpl
     entity.setFederatedEntityId(federatedIdentity.getFederatedEntityId());
     entity.setFederatedUsername(federatedIdentity.getFederatedUsername());
     entity.setFederatedUserId(federatedIdentity.getFederatedUserId());
-    entity.setToken(federatedIdentity.getToken());
 
     getEntityManager().persist(entity);
 

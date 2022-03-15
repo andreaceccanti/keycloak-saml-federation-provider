@@ -43,9 +43,6 @@ public class SAMLAggregateFederatedIdentity implements Serializable {
   @Column(name = "FEDERATED_USERNAME")
   private String federatedUsername;
 
-  @Column(name = "TOKEN")
-  private String token;
-
   public String getUserId() {
     return userId;
   }
@@ -92,14 +89,6 @@ public class SAMLAggregateFederatedIdentity implements Serializable {
 
   public void setFederatedUsername(String federatedUsername) {
     this.federatedUsername = federatedUsername;
-  }
-
-  public String getToken() {
-    return token;
-  }
-
-  public void setToken(String token) {
-    this.token = token;
   }
 
   @Override

@@ -16,7 +16,6 @@
             </column>
             <column name="FEDERATED_USER_ID" type="VARCHAR(255)" />
             <column name="FEDERATED_USERNAME" type="VARCHAR(255)" />
-            <column name="TOKEN" type="TEXT" />
         </createTable>
     </changeSet>
 </databaseChangeLog>
