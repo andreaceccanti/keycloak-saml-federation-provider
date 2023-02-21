@@ -1,6 +1,5 @@
 package it.infn.cnaf.sd.kc.wayf.resources;
 
-import java.net.URI;
 import java.util.List;
 
 import javax.ws.rs.GET;
@@ -14,7 +13,6 @@ import javax.ws.rs.core.Response.Status;
 
 import org.jboss.logging.Logger;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resource.RealmResourceProvider;
 

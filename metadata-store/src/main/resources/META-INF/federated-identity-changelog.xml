@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+	<changeSet author="enrico.vianello@cnaf.infn.it"
+		id="saml-aggregate-federated-identity-1.0">
+		<createTable tableName="SAML_AGGREGATE_FEDERATED_IDENTITY">
+			<column name="REALM_ID" type="VARCHAR(36)">
+				<constraints nullable="false" />
+			</column>
+			<column name="USER_ID" type="VARCHAR(36)">
+				<constraints nullable="false" />
+			</column>
+			<column name="IDENTITY_PROVIDER_INTERNAL_ID"
+				type="VARCHAR(36)">
+				<constraints nullable="false" />
+			</column>
+			<column name="FEDERATED_USER_ID" type="VARCHAR(255)">
+				<constraints nullable="false" />
+			</column>
+			<column name="ENTITY_ID" type="VARCHAR(255)"/>
+			<column name="FEDERATED_USERNAME" type="VARCHAR(255)"/>
+			<column name="TOKEN" type="VARCHAR(255)"/>
+		</createTable>
+		<addPrimaryKey columnNames="REALM_ID, USER_ID, IDENTITY_PROVIDER_INTERNAL_ID, FEDERATED_USER_ID"
+			constraintName="PK_SAML_AGGREGATE_FEDERATED_IDENTITY"
+			tableName="SAML_AGGREGATE_FEDERATED_IDENTITY" />
+		<addForeignKeyConstraint
+			baseColumnNames="REALM_ID"
+			baseTableName="SAML_AGGREGATE_FEDERATED_IDENTITY"
+			constraintName="FK_SAML_AGGREGATE_FEDERATED_IDENTITY_REALM_ID"
+			referencedColumnNames="ID"
+			referencedTableName="REALM" />
+		<addForeignKeyConstraint
+			baseColumnNames="USER_ID"
+			baseTableName="SAML_AGGREGATE_FEDERATED_IDENTITY"
+			constraintName="FK_SAML_AGGREGATE_FEDERATED_IDENTITY_USER_ID"
+			referencedColumnNames="ID"
+			referencedTableName="USER_ENTITY" />
+		<addForeignKeyConstraint
+			baseColumnNames="IDENTITY_PROVIDER_INTERNAL_ID"
+			baseTableName="SAML_AGGREGATE_FEDERATED_IDENTITY"
+			constraintName="FK_SAML_AGGREGATE_FEDERATED_IDENTITY_IDENTITY_PROVIDER_INTERNAL_ID"
+			referencedColumnNames="INTERNAL_ID"
+			referencedTableName="IDENTITY_PROVIDER" />
+	</changeSet>
+</databaseChangeLog>

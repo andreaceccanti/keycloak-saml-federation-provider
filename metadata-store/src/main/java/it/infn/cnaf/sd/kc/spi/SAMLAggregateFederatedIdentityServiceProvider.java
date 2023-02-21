@@ -1,14 +1,30 @@
 package it.infn.cnaf.sd.kc.spi;
 
-import java.util.List;
+import java.util.stream.Stream;
 
 import org.keycloak.provider.Provider;
 
 public interface SAMLAggregateFederatedIdentityServiceProvider extends Provider {
 
-  List<FederatedIdentityRepresentation> listsUserFederatedIdentities(String userId);
+  Stream<SamlAggregateFederatedIdentityDTO> list(String realmId, String userId);
 
-  FederatedIdentityRepresentation findFederatedIdentity(String userId, String idpId, String entityId);
+  Stream<SamlAggregateFederatedIdentityDTO> find(String realmId, String userId,
+      String idpId, String federatedUserId);
 
-  FederatedIdentityRepresentation addFederatedIdentity(FederatedIdentityRepresentation federatedIdentity);
+  Stream<SamlAggregateFederatedIdentityDTO> find(String realmId, String federatedUserId);
+
+  void add(SamlAggregateFederatedIdentityDTO dto);
+
+  void add(String realmId, String userId, String idpId, String federatedUserId,
+      String entityId, String federatedUsername);
+
+  void updateToken(String realmId, String userId, String idpId,
+      String federatedUserId, String token);
+
+  void updateToken(SamlAggregateFederatedIdentityDTO updateMe, String token);
+
+  int remove(SamlAggregateFederatedIdentityDTO removeMe);
+
+  int remove(String realmId, String userId, String idpId, String federatedUserId);
+
 }
