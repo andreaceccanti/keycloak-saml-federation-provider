@@ -103,6 +103,7 @@ import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.AuthenticationFlowResolver;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocol.Error;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
@@ -114,6 +115,7 @@ import org.keycloak.protocol.saml.SamlSessionUtils;
 import org.keycloak.protocol.saml.preprocessor.SamlAuthenticationPreprocessor;
 import org.keycloak.provider.ProviderFactory;
 import org.keycloak.representations.account.AccountLinkUriRepresentation;
+import org.keycloak.representations.idm.FederatedIdentityRepresentation;
 import org.keycloak.saml.SAML2AuthnRequestBuilder;
 import org.keycloak.saml.SAML2NameIDPolicyBuilder;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
@@ -551,7 +553,7 @@ public class SAMLAggregateBrokerResource
     String entityId = (String) session.getAttribute(SESSION_SAML_AGGREGATE_ENTITY_ID_ATTRIBUTE);
     String linkingUser = null;
     if (session.getAttribute(SESSION_SAML_AGGREGATE_LINKING_ATTRIBUTE, String.class) != null) {
-      linkingUser = session.getAttribute("link", String.class);
+      linkingUser = session.getAttribute(SESSION_SAML_AGGREGATE_LINKING_ATTRIBUTE, String.class);
       context.getAuthenticationSession().setAuthNote(LINKING_IDENTITY_PROVIDER, userSession.getId() + authenticationSession.getClient().getClientId() + entityId);
     }
 
@@ -1951,4 +1953,12 @@ public class SAMLAggregateBrokerResource
     return this;
   }
 
+  @GET
+  @Path("/{user}/aggregate-federated-identity")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Stream<SAMLAggregateFederatedIdentityRepresentation> getSamlAggregateFederatedIdentities(final @PathParam("user") String userId) {
+
+    return federatedIdentitiesService.list(realm.getId(), userId)
+            .map(f -> f.toRepresentation());
+  }
 }

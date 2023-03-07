@@ -1,4 +1,4 @@
-package it.infn.cnaf.sd.kc.jpa;
+package it.infn.cnaf.sd.kc.samlaggregate.entities.jpa;
 
 import org.keycloak.Config.Scope;
 import org.keycloak.connections.jpa.entityprovider.JpaEntityProvider;
@@ -8,7 +8,7 @@ import org.keycloak.models.KeycloakSessionFactory;
 
 public class SAMLAggregateFederatedIdentityJpaEntityProviderFactory implements JpaEntityProviderFactory {
 
-  protected static final String ID = "saml-aggregate-linked-providers-entity-provider";
+  protected static final String ID = "saml-aggregate-federated-identity";
 
   @Override
   public JpaEntityProvider create(KeycloakSession session) {

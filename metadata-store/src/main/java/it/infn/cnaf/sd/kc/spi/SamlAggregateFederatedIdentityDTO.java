@@ -3,6 +3,7 @@ package it.infn.cnaf.sd.kc.spi;
 import java.util.Objects;
 
 import it.infn.cnaf.sd.kc.samlaggregate.entities.SAMLAggregateFederatedIdentityEntity;
+import it.infn.cnaf.sd.kc.samlaggregate.resources.SAMLAggregateFederatedIdentityRepresentation;
 
 public class SamlAggregateFederatedIdentityDTO {
 
@@ -122,5 +123,15 @@ public class SamlAggregateFederatedIdentityDTO {
     return Objects.equals(federatedUserId, other.federatedUserId)
         && Objects.equals(identityProviderInternalId, other.identityProviderInternalId)
         && Objects.equals(realmId, other.realmId) && Objects.equals(userId, other.userId);
+  }
+
+  public SAMLAggregateFederatedIdentityRepresentation toRepresentation() {
+    
+    SAMLAggregateFederatedIdentityRepresentation o = new SAMLAggregateFederatedIdentityRepresentation();
+    o.setEntityId(entityId);
+    o.setIdentityProvider(identityProviderAlias);
+    o.setUserId(federatedUserId);
+    o.setUserName(federatedUsername);
+    return o;
   }
 }
