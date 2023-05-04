@@ -64,10 +64,10 @@ public class SAMLAggregateJpaUserProvider extends JpaUserProvider {
     super.updateFederatedIdentity(realm, federatedUser, identity);
   }
 
-  @Override
-  public Set<FederatedIdentityModel> getFederatedIdentities(UserModel user, RealmModel realm) {
-    return getFederatedIdentitiesStream(realm, user).collect(Collectors.toSet());
-  }
+//  @Override
+//  public Set<FederatedIdentityModel> getFederatedIdentities(UserModel user, RealmModel realm) {
+//    return getFederatedIdentitiesStream(realm, user).collect(Collectors.toSet());
+//  }
 
   @Override
   public Stream<FederatedIdentityModel> getFederatedIdentitiesStream(RealmModel realm,
@@ -88,11 +88,11 @@ public class SAMLAggregateJpaUserProvider extends JpaUserProvider {
     return super.getFederatedIdentity(realm, user, identityProvider);
   }
 
-  @Override
-  public UserModel getUserByFederatedIdentity(FederatedIdentityModel socialLink, RealmModel realm) {
-
-    return this.getUserByFederatedIdentity(realm, socialLink);
-  }
+//  @Override
+//  public UserModel getUserByFederatedIdentity(FederatedIdentityModel socialLink, RealmModel realm) {
+//
+//    return this.getUserByFederatedIdentity(realm, socialLink);
+//  }
 
   @Override
   public UserModel getUserByFederatedIdentity(RealmModel realm, FederatedIdentityModel identity) {

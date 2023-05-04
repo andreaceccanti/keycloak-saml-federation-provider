@@ -7,14 +7,13 @@ import org.keycloak.forms.login.freemarker.FreeMarkerLoginFormsProvider;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resources.LoginActionsService;
-import org.keycloak.theme.FreeMarkerUtil;
 
 import it.infn.cnaf.sd.kc.samlaggregate.resources.SAMLAggregateBrokerResource;
 
 public class SAMLAggregateLoginFormsProvider extends FreeMarkerLoginFormsProvider {
 
-  public SAMLAggregateLoginFormsProvider(KeycloakSession session, FreeMarkerUtil freeMarker) {
-    super(session, freeMarker);
+  public SAMLAggregateLoginFormsProvider(KeycloakSession session) {
+    super(session);
   }
 
   @Override

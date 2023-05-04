@@ -389,7 +389,7 @@ public abstract class AbstractSAMLBinding implements SAMLBinding {
         // This methods writes the parsed and decrypted assertion back on the responseType
         // parameter:
         assertionElement =
-            AssertionUtil.decryptAssertion(holder, responseType, keys.getPrivateKey());
+            AssertionUtil.decryptAssertion(responseType, keys.getPrivateKey());
       } else {
         /*
          * We verify the assertion using original document to handle cases where the IdP includes

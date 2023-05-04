@@ -68,6 +68,7 @@ import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocolFactory;
 import org.keycloak.protocol.saml.JaxrsSAML2BindingBuilder;
+import org.keycloak.protocol.saml.SAMLDecryptionKeysLocator;
 import org.keycloak.protocol.saml.SamlPrincipalType;
 import org.keycloak.protocol.saml.SamlProtocol;
 import org.keycloak.protocol.saml.SamlProtocolUtils;
@@ -105,7 +106,7 @@ import it.infn.cnaf.sd.kc.metadata.SAMLIdpDescriptor;
 
 public class SAMLAggregateEndpoint {
 
-  public static final Logger LOG = Logger.getLogger(SAMLAggregateEndpoint.class);
+  protected static final Logger logger = Logger.getLogger(SAMLAggregateEndpoint.class);
 
   public static final String SAML_FEDERATED_SESSION_INDEX = "SAML_FEDERATED_SESSION_INDEX";
   @Deprecated // in favor of SAML_FEDERATED_SUBJECT_NAMEID
@@ -126,6 +127,9 @@ public class SAMLAggregateEndpoint {
   protected final SAMLAggregateIdentityProviderConfig config;
   protected final IdentityProvider.AuthenticationCallback callback;
   protected final SAMLIdpDescriptor idpDescriptor;
+
+  public static final String ENCRYPTION_DEPRECATED_MODE_PROPERTY = "keycloak.saml.deprecated.encryption";
+  private final boolean DEPRECATED_ENCRYPTION = Boolean.getBoolean(ENCRYPTION_DEPRECATED_MODE_PROPERTY);
 
   protected final DestinationValidator destinationValidator;
 
@@ -315,7 +319,7 @@ public class SAMLAggregateEndpoint {
           cert.checkValidity();
           keys.add(cert.getPublicKey());
         } catch (CertificateException e) {
-          LOG.warnf("Ignoring invalid certificate: %s", cert);
+          logger.warnf("Ignoring invalid certificate: %s", cert);
         } catch (ProcessingException e) {
           throw new RuntimeException(e);
         }
@@ -360,7 +364,7 @@ public class SAMLAggregateEndpoint {
         try {
           verifySignature(GeneralConstants.SAML_REQUEST_KEY, holder);
         } catch (VerificationException e) {
-          LOG.error("validation failed", e);
+          logger.error("validation failed", e);
           event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
           event.error(Errors.INVALID_SIGNATURE);
           return ErrorPage.error(session, null, Response.Status.BAD_REQUEST,
@@ -369,7 +373,7 @@ public class SAMLAggregateEndpoint {
       }
 
       if (requestAbstractType instanceof LogoutRequestType) {
-        LOG.debug("** logout request");
+        logger.debug("** logout request");
         event.event(EventType.LOGOUT);
         LogoutRequestType logout = (LogoutRequestType) requestAbstractType;
         return logoutRequest(logout, relayState);
@@ -416,7 +420,7 @@ public class SAMLAggregateEndpoint {
               AuthenticationManager.backchannelLogout(session, realm, userSession,
                   session.getContext().getUri(), clientConnection, headers, false);
             } catch (Exception e) {
-              LOG.warn("failed to do backchannel logout for userSession", e);
+              logger.warn("failed to do backchannel logout for userSession", e);
             }
           }
         }
@@ -472,7 +476,7 @@ public class SAMLAggregateEndpoint {
           AuthenticationManager.backchannelLogout(session, realm, userSession,
               session.getContext().getUri(), clientConnection, headers, false);
         } catch (Exception e) {
-          LOG.warn("failed to do backchannel logout for userSession", e);
+          logger.warn("failed to do backchannel logout for userSession", e);
         }
       };
     }
@@ -499,11 +503,8 @@ public class SAMLAggregateEndpoint {
         }
         session.getContext().setAuthenticationSession(authSession);
 
-        KeyManager.ActiveRsaKey keys = session.keys().getActiveRsaKey(realm);
-        if (!isSuccessfulSamlResponse(responseType)) {
-          String statusMessage =
-              responseType.getStatus() == null ? Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR
-                  : responseType.getStatus().getStatusMessage();
+        if (! isSuccessfulSamlResponse(responseType)) {
+          String statusMessage = responseType.getStatus() == null || responseType.getStatus().getStatusMessage() == null ? Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR : responseType.getStatus().getStatusMessage();
           return callback.error(statusMessage);
         }
         if (responseType.getAssertions() == null || responseType.getAssertions().isEmpty()) {
@@ -513,20 +514,32 @@ public class SAMLAggregateEndpoint {
         boolean assertionIsEncrypted = AssertionUtil.isAssertionEncrypted(responseType);
 
         if (config.isWantAssertionsEncrypted() && !assertionIsEncrypted) {
-          LOG.error("The assertion is not encrypted, which is required.");
+          logger.error("The assertion is not encrypted, which is required.");
           event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
           event.error(Errors.INVALID_SAML_RESPONSE);
           return ErrorPage.error(session, authSession, Response.Status.BAD_REQUEST,
               Messages.INVALID_REQUESTER);
         }
 
-        Element assertionElement;
+        Element assertionElement = null;
 
         if (assertionIsEncrypted) {
-          // This methods writes the parsed and decrypted assertion back on the responseType
-          // parameter:
-          assertionElement =
-              AssertionUtil.decryptAssertion(holder, responseType, keys.getPrivateKey());
+          try {
+            /* This code is deprecated and will be removed in Keycloak 24 */
+            if (DEPRECATED_ENCRYPTION) {
+              KeyManager.ActiveRsaKey keys = session.keys().getActiveRsaKey(realm);
+              assertionElement = AssertionUtil.decryptAssertion(responseType, keys.getPrivateKey());
+            } else {
+              /* End of deprecated code */
+              assertionElement = AssertionUtil.decryptAssertion(responseType,
+                  new SAMLDecryptionKeysLocator(session, realm, config.getEncryptionAlgorithm()));
+            }
+          } catch (ProcessingException ex) {
+            logger.warnf(ex,
+                "Not possible to decrypt SAML assertion. Please check realm keys of usage ENC in the realm '%s' and make sure there is a key able to decrypt the assertion encrypted by identity provider '%s'",
+                realm.getName(), config.getAlias());
+            throw new WebApplicationException(ex, Response.Status.BAD_REQUEST);
+          }
         } else {
           /*
            * We verify the assertion using original document to handle cases where the IdP includes
@@ -557,7 +570,7 @@ public class SAMLAggregateEndpoint {
 
         if (assertionSignatureNotExistsWhenRequired || signatureNotValid
             || hasNoSignatureWhenRequired) {
-          LOG.error("validation failed");
+          logger.error("validation failed");
           event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
           event.error(Errors.INVALID_SIGNATURE);
           return ErrorPage.error(session, authSession, Response.Status.BAD_REQUEST,
@@ -565,15 +578,31 @@ public class SAMLAggregateEndpoint {
         }
 
         if (AssertionUtil.isIdEncrypted(responseType)) {
-          // This methods writes the parsed and decrypted id back on the responseType parameter:
-          AssertionUtil.decryptId(responseType, keys.getPrivateKey());
+          try {
+            /* This code is deprecated and will be removed in Keycloak 24 */
+            if (DEPRECATED_ENCRYPTION) {
+              KeyManager.ActiveRsaKey keys = session.keys().getActiveRsaKey(realm);
+              AssertionUtil.decryptId(responseType,
+                  data -> Collections.singletonList(keys.getPrivateKey()));
+            } else {
+              /* End of deprecated code */
+              AssertionUtil.decryptId(responseType,
+                  new SAMLDecryptionKeysLocator(session, realm, config.getEncryptionAlgorithm()));
+            }
+          } catch (ProcessingException ex) {
+            logger.warnf(ex,
+                "Not possible to decrypt SAML encryptedId. Please check realm keys of usage ENC in the realm '%s' and make sure there is a key able to decrypt the encryptedId encrypted by identity provider '%s'",
+                realm.getName(), config.getAlias());
+            throw new WebApplicationException(ex, Response.Status.BAD_REQUEST);
+          }
         }
+
         AssertionType assertion = responseType.getAssertions().get(0).getAssertion();
         NameIDType subjectNameID = getSubjectNameID(assertion);
         String principal = getPrincipal(assertion);
 
         if (principal == null) {
-          LOG.errorf("no principal in assertion; expected: %s", expectedPrincipalType());
+          logger.errorf("no principal in assertion; expected: %s", expectedPrincipalType());
           event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
           event.error(Errors.INVALID_SAML_RESPONSE);
           return ErrorPage.error(session, authSession, Response.Status.BAD_REQUEST,
@@ -615,7 +644,7 @@ public class SAMLAggregateEndpoint {
           // warning has been already emitted in DeploymentBuilder
         }
         if (!cvb.build().isValid()) {
-          LOG.error("Assertion expired.");
+          logger.error("Assertion expired.");
           event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
           event.error(Errors.INVALID_SAML_RESPONSE);
           return ErrorPage.error(session, authSession, Response.Status.BAD_REQUEST,
@@ -665,35 +694,24 @@ public class SAMLAggregateEndpoint {
      */
     private AuthenticationSessionModel samlIdpInitiatedSSO(final String clientUrlName) {
       event.event(EventType.LOGIN);
-      CacheControlUtil.noBackButtonCacheControlHeader();
-      Optional<ClientModel> oClient =
-          SAMLAggregateEndpoint.this.session.clients()
-            .searchClientsByAttributes(realm,
-                Collections.singletonMap(SamlProtocol.SAML_IDP_INITIATED_SSO_URL_NAME,
-                    clientUrlName),
-                0, 1)
-            .findFirst();
+      CacheControlUtil.noBackButtonCacheControlHeader(session);
+      Optional<ClientModel> oClient = SAMLAggregateEndpoint.this.session.clients()
+        .searchClientsByAttributes(realm, Collections.singletonMap(SamlProtocol.SAML_IDP_INITIATED_SSO_URL_NAME, clientUrlName), 0, 1)
+        .findFirst();
 
-      if (!oClient.isPresent()) {
-        event.error(Errors.CLIENT_NOT_FOUND);
-        Response response =
-            ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.CLIENT_NOT_FOUND);
-        throw new WebApplicationException(response);
+      if (! oClient.isPresent()) {
+          event.error(Errors.CLIENT_NOT_FOUND);
+          Response response = ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.CLIENT_NOT_FOUND);
+          throw new WebApplicationException(response);
       }
 
-      LoginProtocolFactory factory = (LoginProtocolFactory) session.getKeycloakSessionFactory()
-        .getProviderFactory(LoginProtocol.class, SamlProtocol.LOGIN_PROTOCOL);
-      SamlService samlService =
-          (SamlService) factory.createProtocolEndpoint(SAMLAggregateEndpoint.this.realm, event);
-      ResteasyProviderFactory.getInstance().injectProperties(samlService);
-      AuthenticationSessionModel authSession =
-          samlService.getOrCreateLoginSessionForIdpInitiatedSso(session,
-              SAMLAggregateEndpoint.this.realm, oClient.get(), null);
+      LoginProtocolFactory factory = (LoginProtocolFactory) session.getKeycloakSessionFactory().getProviderFactory(LoginProtocol.class, SamlProtocol.LOGIN_PROTOCOL);
+      SamlService samlService = (SamlService) factory.createProtocolEndpoint(SAMLAggregateEndpoint.this.session, event);
+      AuthenticationSessionModel authSession = samlService.getOrCreateLoginSessionForIdpInitiatedSso(session, SAMLAggregateEndpoint.this.realm, oClient.get(), null);
       if (authSession == null) {
-        event.error(Errors.INVALID_REDIRECT_URI);
-        Response response = ErrorPage.error(session, null, Response.Status.BAD_REQUEST,
-            Messages.INVALID_REDIRECT_URI);
-        throw new WebApplicationException(response);
+          event.error(Errors.INVALID_REDIRECT_URI);
+          Response response = ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REDIRECT_URI);
+          throw new WebApplicationException(response);
       }
 
       return authSession;
@@ -749,7 +767,7 @@ public class SAMLAggregateEndpoint {
         try {
           verifySignature(GeneralConstants.SAML_RESPONSE_KEY, holder);
         } catch (VerificationException e) {
-          LOG.error("validation failed", e);
+          logger.error("validation failed", e);
           event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
           event.error(Errors.INVALID_SIGNATURE);
           return ErrorPage.error(session, null, Response.Status.BAD_REQUEST,
@@ -771,7 +789,7 @@ public class SAMLAggregateEndpoint {
     protected Response handleLogoutResponse(SAMLDocumentHolder holder,
         StatusResponseType responseType, String relayState) {
       if (relayState == null) {
-        LOG.error("no valid user session");
+        logger.error("no valid user session");
         event.event(EventType.LOGOUT);
         event.error(Errors.USER_SESSION_NOT_FOUND);
         return ErrorPage.error(session, null, Response.Status.BAD_REQUEST,
@@ -779,14 +797,14 @@ public class SAMLAggregateEndpoint {
       }
       UserSessionModel userSession = session.sessions().getUserSession(realm, relayState);
       if (userSession == null) {
-        LOG.error("no valid user session");
+        logger.error("no valid user session");
         event.event(EventType.LOGOUT);
         event.error(Errors.USER_SESSION_NOT_FOUND);
         return ErrorPage.error(session, null, Response.Status.BAD_REQUEST,
             Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR);
       }
       if (userSession.getState() != UserSessionModel.State.LOGGING_OUT) {
-        LOG.error("usersession in different state");
+        logger.error("usersession in different state");
         event.event(EventType.LOGOUT);
         event.error(Errors.USER_SESSION_NOT_FOUND);
         return ErrorPage.error(session, null, Response.Status.BAD_REQUEST,
@@ -959,7 +977,7 @@ public class SAMLAggregateEndpoint {
     // We are expecting a request ID so we are in SP-initiated login, attribute InResponseTo must be
     // present
     if (responseType.getInResponseTo() == null) {
-      LOG.error(
+      logger.error(
           "Response Validation Error: InResponseTo attribute was expected but not present in received response");
       return false;
     }
@@ -968,14 +986,14 @@ public class SAMLAggregateEndpoint {
     // 1) Attribute Response > InResponseTo must not be empty
     String responseInResponseToValue = responseType.getInResponseTo();
     if (responseInResponseToValue.isEmpty()) {
-      LOG.error(
+      logger.error(
           "Response Validation Error: InResponseTo attribute was expected but it is empty in received response");
       return false;
     }
 
     // 2) Attribute Response > InResponseTo must match request ID
     if (!responseInResponseToValue.equals(expectedRequestId)) {
-      LOG.error(
+      logger.error(
           "Response Validation Error: received InResponseTo attribute does not match the expected request ID");
       return false;
     }
@@ -1002,7 +1020,7 @@ public class SAMLAggregateEndpoint {
               String subjectConfirmationDataInResponseToValue =
                   subjectConfirmationDataElement.getInResponseTo();
               if (subjectConfirmationDataInResponseToValue.isEmpty()) {
-                LOG.error(
+                logger.error(
                     "Response Validation Error: SubjectConfirmationData InResponseTo attribute was expected but it is empty in received response");
                 return false;
               }
@@ -1010,7 +1028,7 @@ public class SAMLAggregateEndpoint {
               // 4) Assertion > Subject > Confirmation > SubjectConfirmationData > InResponseTo does
               // not match request ID
               if (!subjectConfirmationDataInResponseToValue.equals(expectedRequestId)) {
-                LOG.error(
+                logger.error(
                     "Response Validation Error: received SubjectConfirmationData InResponseTo attribute does not match the expected request ID");
                 return false;
               }

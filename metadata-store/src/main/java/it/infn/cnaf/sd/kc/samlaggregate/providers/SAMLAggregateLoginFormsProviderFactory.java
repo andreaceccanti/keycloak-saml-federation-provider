@@ -4,20 +4,16 @@ import org.keycloak.Config.Scope;
 import org.keycloak.forms.login.LoginFormsProviderFactory;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.theme.FreeMarkerUtil;
 
 public class SAMLAggregateLoginFormsProviderFactory implements LoginFormsProviderFactory {
 
-  private FreeMarkerUtil freeMarker;
-
   @Override
   public SAMLAggregateLoginFormsProvider create(KeycloakSession session) {
-    return new SAMLAggregateLoginFormsProvider(session, freeMarker);
+    return new SAMLAggregateLoginFormsProvider(session);
   }
 
   @Override
   public void init(Scope config) {
-    freeMarker = new FreeMarkerUtil();
   }
 
   @Override
@@ -26,7 +22,6 @@ public class SAMLAggregateLoginFormsProviderFactory implements LoginFormsProvide
 
   @Override
   public void close() {
-    freeMarker = null;
   }
 
   @Override

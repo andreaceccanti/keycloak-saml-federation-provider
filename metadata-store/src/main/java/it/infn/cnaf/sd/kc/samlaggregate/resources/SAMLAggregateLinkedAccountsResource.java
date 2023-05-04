@@ -21,15 +21,16 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.UriBuilder;
 
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.spi.HttpRequest;
 import org.keycloak.broker.social.SocialIdentityProvider;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
+import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AccountRoles;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.FederatedIdentityModel;
@@ -173,10 +174,10 @@ public class SAMLAggregateLinkedAccountsResource {
 
     String errorMessage = checkCommonPreconditions(providerId);
     if (errorMessage != null) {
-      return ErrorResponse.error(errorMessage, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(errorMessage, Response.Status.BAD_REQUEST).getResponse();
     }
     if (auth.getSession() == null) {
-      return ErrorResponse.error(Messages.SESSION_NOT_ACTIVE, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(Messages.SESSION_NOT_ACTIVE, Response.Status.BAD_REQUEST).getResponse();
     }
 
     try {
@@ -207,7 +208,7 @@ public class SAMLAggregateLinkedAccountsResource {
     } catch (Exception spe) {
       spe.printStackTrace();
       return ErrorResponse.error(Messages.FAILED_TO_PROCESS_RESPONSE,
-          Response.Status.INTERNAL_SERVER_ERROR);
+          Response.Status.INTERNAL_SERVER_ERROR).getResponse();
     }
   }
 
@@ -219,13 +220,13 @@ public class SAMLAggregateLinkedAccountsResource {
 
     String errorMessage = checkCommonPreconditions(providerId);
     if (errorMessage != null) {
-      return ErrorResponse.error(errorMessage, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(errorMessage, Response.Status.BAD_REQUEST).getResponse();
     }
 
     FederatedIdentityModel link = session.users().getFederatedIdentity(realm, user, providerId);
     if (link == null) {
       return ErrorResponse.error(Messages.FEDERATED_IDENTITY_NOT_ACTIVE,
-          Response.Status.BAD_REQUEST);
+          Response.Status.BAD_REQUEST).getResponse();
     }
 
     // Removing last social provider is not possible if you don't have other
@@ -233,7 +234,7 @@ public class SAMLAggregateLinkedAccountsResource {
     if (!(session.users().getFederatedIdentitiesStream(realm, user).count() > 1
         || user.getFederationLink() != null || isPasswordSet())) {
       return ErrorResponse.error(Messages.FEDERATED_IDENTITY_REMOVING_LAST_PROVIDER,
-          Response.Status.BAD_REQUEST);
+          Response.Status.BAD_REQUEST).getResponse();
     }
 
     session.users().removeFederatedIdentity(realm, user, providerId);

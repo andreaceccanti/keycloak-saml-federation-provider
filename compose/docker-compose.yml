@@ -5,22 +5,24 @@ volumes:
 
 services:
   kc:
-    image: cnafsd/eosc-kc:latest
+    image: cnafsd/eosc-kc:21
     environment:
       TZ: UTC
-      KEYCLOAK_USER: admin
-      KEYCLOAK_PASSWORD: admin
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
       KEYCLOAK_LOGLEVEL: DEBUG
+      DEBUG_PORT: '*:1044'
 
-    command: -c standalone.xml -b 0.0.0.0 --debug *:1044
+    command: start-dev --debug --log-level=DEBUG
+    #command: --debug *:1044 start-dev
 
     volumes:
       - ..:/code
-      - ./standalone.xml:/opt/jboss/keycloak/standalone/configuration/standalone.xml
-      - ../theme/target/eosc-kc-theme.jar:/opt/jboss/keycloak/standalone/deployments/eosc-kc-theme.jar
-      - ../metadata-store/target/keycloak-saml-metadata-store.jar:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/keycloak-saml-metadata-store.jar
-      - ../metadata-store/src/main/resources/module.xml:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/module.xml
+      # - ./standalone.xml:/opt/jboss/keycloak/standalone/configuration/standalone.xml
+      - ../theme/target/eosc-kc-theme.jar:/opt/keycloak/providers/eosc-kc-theme.jar
+      - ../metadata-store/target/keycloak-saml-metadata-store.jar:/opt/keycloak/providers/keycloak-saml-metadata-store.jar
+      # - ../metadata-store/src/main/resources/module.xml:/opt/jboss/keycloak/modules/it/infn/sd/keycloak-saml-metadata-store/main/module.xml
 
     ports:
-      - "8081:8080"
-      - "1044:1044"
+      - 8080:8080
+      - 1044:1044

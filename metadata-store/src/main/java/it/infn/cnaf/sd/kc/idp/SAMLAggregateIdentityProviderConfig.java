@@ -26,6 +26,7 @@ public class SAMLAggregateIdentityProviderConfig extends IdentityProviderModel {
   public static final String VALIDATE_SIGNATURE = "validateSignature";
   public static final String PRINCIPAL_TYPE = "principalType";
   public static final String PRINCIPAL_ATTRIBUTE = "principalAttribute";
+  public static final String ENCRYPTION_ALGORITHM = "encryptionAlgorithm";
   public static final String XML_SIG_KEY_INFO_KEY_NAME_TRANSFORMER = "xmlSigKeyInfoKeyNameTransformer";
 
   private static final long serialVersionUID = 1L;
@@ -213,6 +214,10 @@ public class SAMLAggregateIdentityProviderConfig extends IdentityProviderModel {
   public XmlKeyInfoKeyNameTransformer getXmlSigKeyInfoKeyNameTransformer() {
     return XmlKeyInfoKeyNameTransformer.from(getConfig().get(XML_SIG_KEY_INFO_KEY_NAME_TRANSFORMER), DEFAULT_XML_KEY_INFO_KEY_NAME_TRANSFORMER);
   }
+
+  public String getEncryptionAlgorithm() {
+    return getConfig().get(ENCRYPTION_ALGORITHM);
+}
 
 
 }

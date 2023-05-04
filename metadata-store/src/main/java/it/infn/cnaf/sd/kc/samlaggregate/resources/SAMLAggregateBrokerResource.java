@@ -54,7 +54,6 @@ import javax.ws.rs.core.UriInfo;
 
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.annotations.cache.NoCache;
-import org.jboss.resteasy.spi.HttpRequest;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.authentication.AuthenticationFlowException;
@@ -83,6 +82,7 @@ import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
+import org.keycloak.http.HttpRequest;
 import org.keycloak.locale.LocaleSelectorProvider;
 import org.keycloak.locale.LocaleUpdaterProvider;
 import org.keycloak.models.AccountRoles;
@@ -133,6 +133,7 @@ import org.keycloak.services.managers.ClientSessionCode;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.services.resources.Cors;
+import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.services.resources.RealmsResource;
 import org.keycloak.services.resources.SessionCodeChecks;
 import org.keycloak.services.resources.account.AccountFormService;
@@ -324,8 +325,8 @@ public class SAMLAggregateBrokerResource
     if (clientSessionCode != null) {
       authSession = clientSessionCode.getClientSession();
       String relayState = clientSessionCode.getOrGenerateCode();
-      encodedState = IdentityBrokerState.decoded(relayState, authSession.getClient().getClientId(),
-          authSession.getTabId());
+      encodedState = IdentityBrokerState.decoded(relayState, authSession.getClient().getId(),
+          authSession.getClient().getClientId(), authSession.getTabId());
     }
 
     return new AuthenticationRequest(session, realm, authSession, request,
@@ -460,7 +461,7 @@ public class SAMLAggregateBrokerResource
   @Override
   public AuthenticationSessionModel getAndVerifyAuthenticationSession(String encodedCode) {
 
-    IdentityBrokerState state = IdentityBrokerState.encoded(encodedCode);
+    IdentityBrokerState state = IdentityBrokerState.encoded(encodedCode, this.realm);
     String code = state.getDecodedState();
     String clientId = state.getClientId();
     String tabId = state.getTabId();
@@ -1338,17 +1339,16 @@ public class SAMLAggregateBrokerResource
   }
 
   @Override
-  public Response cancelled() {
+  public Response cancelled(IdentityProviderModel idpConfig) {
+      AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
 
-    AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
+      String idpDisplayName = KeycloakModelUtils.getIdentityProviderDisplayName(session, idpConfig);
+      Response accountManagementFailedLinking = checkAccountManagementFailedLinking(authSession, Messages.ACCESS_DENIED_WHEN_IDP_AUTH, idpDisplayName);
+      if (accountManagementFailedLinking != null) {
+          return accountManagementFailedLinking;
+      }
 
-    Response accountManagementFailedLinking =
-        checkAccountManagementFailedLinking(authSession, Messages.CONSENT_DENIED);
-    if (accountManagementFailedLinking != null) {
-      return accountManagementFailedLinking;
-    }
-
-    return browserAuthentication(authSession, null);
+      return browserAuthentication(authSession, Messages.ACCESS_DENIED_WHEN_IDP_AUTH, idpDisplayName);
   }
 
   @Override
@@ -1471,31 +1471,28 @@ public class SAMLAggregateBrokerResource
     }
   }
 
-  protected Response browserAuthentication(AuthenticationSessionModel authSession,
-      String errorMessage) {
-
+  protected Response browserAuthentication(AuthenticationSessionModel authSession, String errorMessage, Object... parameters) {
     this.event.event(EventType.LOGIN);
     AuthenticationFlowModel flow = AuthenticationFlowResolver.resolveBrowserFlow(authSession);
     String flowId = flow.getId();
     AuthenticationProcessor processor = new AuthenticationProcessor();
     processor.setAuthenticationSession(authSession)
-      .setFlowPath(AUTHENTICATE_PATH)
-      .setFlowId(flowId)
-      .setBrowserFlow(true)
-      .setConnection(session.getContext().getConnection())
-      .setEventBuilder(event)
-      .setRealm(session.getContext().getRealm())
-      .setSession(session)
-      .setUriInfo(session.getContext().getUri())
-      .setRequest(request);
-    if (errorMessage != null)
-      processor.setForwardedErrorMessage(new FormMessage(null, errorMessage));
+            .setFlowPath(LoginActionsService.AUTHENTICATE_PATH)
+            .setFlowId(flowId)
+            .setBrowserFlow(true)
+            .setConnection(clientConnection)
+            .setEventBuilder(event)
+            .setRealm(realm)
+            .setSession(session)
+            .setUriInfo(session.getContext().getUri())
+            .setRequest(request);
+    if (errorMessage != null) processor.setForwardedErrorMessage(new FormMessage(null, errorMessage, parameters));
 
     try {
-      CacheControlUtil.noBackButtonCacheControlHeader();
-      return processor.authenticate();
+        CacheControlUtil.noBackButtonCacheControlHeader(session);
+        return processor.authenticate();
     } catch (Exception e) {
-      return processor.handleBrowserException(e);
+        return processor.handleBrowserException(e);
     }
   }
 
@@ -1702,8 +1699,9 @@ public class SAMLAggregateBrokerResource
     if (clientSessionCode != null) {
         authSession = clientSessionCode.getClientSession();
         String relayState = clientSessionCode.getOrGenerateCode();
-        encodedState = IdentityBrokerState.decoded(relayState, authSession.getClient().getClientId(), authSession.getTabId());
-    }
+        encodedState = IdentityBrokerState.decoded(relayState, authSession.getClient().getId(),
+            authSession.getClient().getClientId(), authSession.getTabId());
+      }
 
     return new AuthenticationRequest(this.session, this.realm, authSession, this.request, this.session.getContext().getUri(), encodedState, getRedirectUri(providerId));
   }
@@ -1881,23 +1879,23 @@ public class SAMLAggregateBrokerResource
     auth.require(AccountRoles.MANAGE_ACCOUNT);
 
     if (redirectUri == null) {
-      return ErrorResponse.error(INVALID_REDIRECT_URI, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(INVALID_REDIRECT_URI, Response.Status.BAD_REQUEST).getResponse();
     }
 
     if (Validation.isEmpty(providerId)) {
-      return ErrorResponse.error(MISSING_IDENTITY_PROVIDER, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(MISSING_IDENTITY_PROVIDER, Response.Status.BAD_REQUEST).getResponse();
     }
 
     if (!isValidProvider(providerId)) {
-      return ErrorResponse.error(IDENTITY_PROVIDER_NOT_FOUND, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(IDENTITY_PROVIDER_NOT_FOUND, Response.Status.BAD_REQUEST).getResponse();
     }
 
     if (!auth.getUser().isEnabled()) {
-      return ErrorResponse.error(ACCOUNT_DISABLED, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(ACCOUNT_DISABLED, Response.Status.BAD_REQUEST).getResponse();
     }
 
     if (auth.getSession() == null) {
-      return ErrorResponse.error(SESSION_NOT_ACTIVE, Response.Status.BAD_REQUEST);
+      return ErrorResponse.error(SESSION_NOT_ACTIVE, Response.Status.BAD_REQUEST).getResponse();
     }
 
     try {
@@ -1929,7 +1927,7 @@ public class SAMLAggregateBrokerResource
     } catch (Exception spe) {
       spe.printStackTrace();
       return ErrorResponse.error(Messages.FAILED_TO_PROCESS_RESPONSE,
-          Response.Status.INTERNAL_SERVER_ERROR);
+          Response.Status.INTERNAL_SERVER_ERROR).getResponse();
     }
   }
 
@@ -1953,12 +1951,12 @@ public class SAMLAggregateBrokerResource
     return this;
   }
 
-  @GET
-  @Path("/{user}/aggregate-federated-identity")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Stream<SAMLAggregateFederatedIdentityRepresentation> getSamlAggregateFederatedIdentities(final @PathParam("user") String userId) {
-
-    return federatedIdentitiesService.list(realm.getId(), userId)
-            .map(f -> f.toRepresentation());
-  }
+//  @GET
+//  @Path("/{user}/aggregate-federated-identity")
+//  @Produces(MediaType.APPLICATION_JSON)
+//  public Stream<SAMLAggregateFederatedIdentityRepresentation> getSamlAggregateFederatedIdentities(final @PathParam("user") String userId) {
+//
+//    return federatedIdentitiesService.list(realm.getId(), userId)
+//            .map(f -> f.toRepresentation());
+//  }
 }
